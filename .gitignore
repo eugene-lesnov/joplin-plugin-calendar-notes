@@ -1,0 +1,7 @@
+dist/
+node_modules/
+publish/
+.yarn/
+yarn-error.log
+/.idea/
+.npmrc

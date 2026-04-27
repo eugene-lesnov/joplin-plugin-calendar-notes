@@ -1,0 +1,135 @@
+.calendar-root {
+    --calendar-day-height: 34px;
+
+    box-sizing: border-box;
+    padding: 12px;
+    background: var(--joplin-background-color);
+    color: var(--joplin-color);
+    font-family: var(--joplin-font-family);
+    font-size: var(--joplin-font-size);
+}
+
+.calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.month-label {
+    font-weight: 600;
+    text-transform: capitalize;
+    text-align: center;
+}
+
+.nav-button,
+.today-button,
+.refresh-button,
+.day {
+    border: 1px solid var(--joplin-divider-color);
+    background: var(--joplin-background-color);
+    color: var(--joplin-color);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.nav-button {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    line-height: 20px;
+}
+
+.calendar-actions {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.today-button,
+.refresh-button {
+    padding: 6px 8px;
+}
+
+.today-button {
+    flex: 1;
+}
+
+.refresh-button {
+    flex: 0 0 auto;
+}
+
+.weekdays,
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.weekdays {
+    margin-bottom: 4px;
+    font-size: 11px;
+    opacity: 0.75;
+    text-align: center;
+}
+
+.day {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--calendar-day-height);
+    padding: 0;
+    text-align: center;
+}
+
+.day:not(.day-empty):hover,
+.nav-button:hover,
+.today-button:hover,
+.refresh-button:hover {
+    background: var(--joplin-selected-color);
+}
+
+.day-empty {
+    border: none;
+    background: transparent;
+    cursor: default;
+}
+
+.today {
+    outline: 2px solid var(--joplin-color);
+    outline-offset: -2px;
+}
+
+.has-note {
+    font-weight: 700;
+}
+
+.dot,
+.legend-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--joplin-color);
+}
+
+.dot {
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    transform: translateX(-50%);
+}
+
+.legend {
+    margin-top: 10px;
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+.legend-dot {
+    margin-right: 4px;
+}
+
