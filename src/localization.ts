@@ -22,7 +22,6 @@ export interface AppLocalization {
   previousMonthTitle: string;
   nextMonthTitle: string;
   todayButtonLabel: string;
-  refreshCalendarButtonLabel: string;
   refreshCalendarTitle: string;
   createCalendarNoteNoNotebookError: string;
   createCalendarNoteTemplateReadError: string;
@@ -59,7 +58,6 @@ const defaultStrings: AppLocalization = {
   previousMonthTitle: "Previous month",
   nextMonthTitle: "Next month",
   todayButtonLabel: "Today",
-  refreshCalendarButtonLabel: "Refresh",
   refreshCalendarTitle: "Refresh calendar note markers",
   createCalendarNoteNoNotebookError:
     "Cannot create a calendar note: no notebook was found.",
@@ -97,7 +95,6 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     previousMonthTitle: "Предыдущий месяц",
     nextMonthTitle: "Следующий месяц",
     todayButtonLabel: "Сегодня",
-    refreshCalendarButtonLabel: "Обновить",
     refreshCalendarTitle: "Обновить отметки календарных заметок",
     createCalendarNoteNoNotebookError: "Не удалось создать календарную заметку: блокнот не найден.",
     createCalendarNoteTemplateReadError:
