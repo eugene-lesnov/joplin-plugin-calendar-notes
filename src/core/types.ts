@@ -19,7 +19,6 @@ export type NoteSummary = {
 };
 
 export type ExistingCalendarNoteMarkers = {
-  dates: Set<string>;
   datesByNoteId: Map<string, string>;
   noteCountsByDate: Map<string, number>;
   notesByDate: Map<string, NoteSummary[]>;

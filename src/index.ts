@@ -8,12 +8,12 @@ import {
   SETTING_NOTE_MODE,
   SETTING_WEEK_START,
   SETTING_ZEN_MODE_TITLE_FORMAT,
-} from "./constants";
-import strings, { getLocales, setLocale } from "./localization";
+} from "./core/constants";
+import strings, { getLocales, setLocale } from "./core/localization";
 import {
   createFlowModeCalendarNote,
   openOrCreateCalendarNote,
-} from "./notes";
+} from "./notes/notes";
 import {
   goToNextMonth,
   goToPrevMonth,
@@ -28,13 +28,13 @@ import {
   setupPanel,
   shouldRefreshCalendarForNoteChange,
   toggleCalendarPanel,
-} from "./panel";
-import { registerSettings } from "./settings";
+} from "./panel/panel";
+import { registerSettings } from "./settings/settings";
 import type {
   CalendarMessage,
   NoteChangeEvent,
   NoteSelectionChangeEvent,
-} from "./types";
+} from "./core/types";
 
 const TOGGLE_COMMAND = "toggleCalendarNotes";
 const TOGGLE_TOOLBAR_BUTTON_ID = "toggleCalendarNotesToolbarButton";

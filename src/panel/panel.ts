@@ -1,27 +1,28 @@
 import joplin from "api";
 
-import { PANEL_ID } from "./constants";
+import { PANEL_ID } from "../core/constants";
 import {
   daysInMonth,
   escapeHtml,
   formatDateId,
   weekOffset,
   weekdayLabels,
-} from "./dateUtils";
-import strings, { formatLocalizedString, getLocales } from "./localization";
+} from "../core/dateUtils";
+import strings, { formatLocalizedString, getLocales } from "../core/localization";
 import {
+  NOTE_FIELDS,
   buildNoteTitle,
   getExistingCalendarNoteMarkers,
   isCalendarNoteTitleForDate,
   isDeletedNote,
   resolveCalendarNoteDateId,
-} from "./notes";
-import { getCalendarSettings } from "./settings";
+} from "../notes/notes";
+import { getCalendarSettings } from "../settings/settings";
 import type {
   CalendarMessage,
   CalendarSettings,
   NoteSummary,
-} from "./types";
+} from "../core/types";
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
 const NOTE_CHANGE_DELETE_EVENT = 3;
@@ -44,8 +45,8 @@ export async function setupPanel(
 
   panelHandle = await joplin.views.panels.create(PANEL_ID);
 
-  await joplin.views.panels.addScript(panelHandle, "./webview.css");
-  await joplin.views.panels.addScript(panelHandle, "./webview.js");
+  await joplin.views.panels.addScript(panelHandle, "./panel/webview.css");
+  await joplin.views.panels.addScript(panelHandle, "./panel/webview.js");
   await joplin.views.panels.setHtml(panelHandle, strings.loadingCalendar);
 
   await joplin.views.panels.onMessage(panelHandle, onMessage);
@@ -62,7 +63,7 @@ async function isPanelVisible(): Promise<boolean> {
 async function getActiveNote(noteId: string): Promise<NoteSummary | null> {
   try {
     const note = (await joplin.data.get(["notes", noteId], {
-      fields: ["id", "title", "parent_id", "deleted_time"],
+      fields: NOTE_FIELDS,
     })) as NoteSummary;
 
     if (isDeletedNote(note)) {
@@ -70,7 +71,7 @@ async function getActiveNote(noteId: string): Promise<NoteSummary | null> {
     }
 
     return note;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

@@ -1,6 +1,6 @@
 import joplin from "api";
 
-import type { FolderSummary } from "./types";
+import type { FolderSummary } from "../core/types";
 
 function normalizeParentId(parentId: string | undefined | null): string {
   return parentId ?? "";

@@ -3,7 +3,7 @@ import joplin from "api";
 import {
   DEFAULT_FLOW_MODE_TITLE_FORMAT,
   PLUGIN_ID,
-} from "./constants";
+} from "../core/constants";
 import {
   daysInMonth,
   formatDateByPattern,
@@ -12,23 +12,23 @@ import {
   pad2,
   parseDateId,
   startOfLocalDayMs,
-} from "./dateUtils";
-import strings, { formatLocalizedString } from "./localization";
+} from "../core/dateUtils";
+import strings, { formatLocalizedString } from "../core/localization";
 import {
   ensureNotebookPath,
   getFallbackFolderId,
   resolveNotebookPath,
   splitNotebookPath,
 } from "./notebooks";
-import { getCalendarSettings } from "./settings";
+import { getCalendarSettings } from "../settings/settings";
 import type {
   CalendarSettings,
   ExistingCalendarNoteMarkers,
   NoteSummary,
-} from "./types";
+} from "../core/types";
 
 const NOTE_PAGE_LIMIT = 100;
-const NOTE_FIELDS = ["id", "title", "parent_id", "deleted_time"];
+export const NOTE_FIELDS = ["id", "title", "parent_id", "deleted_time"];
 
 const ZEN_MODE_TITLE_PLACEHOLDER_PATTERN = /\{\{\s*zenModeTitle\s*\}\}/g;
 const DATE_PLACEHOLDER_PATTERN = /\{\{\s*date:([^}]+)\s*\}\}/g;
@@ -52,7 +52,7 @@ export function isDeletedNote(note: NoteSummary): boolean {
   return Boolean(note.deleted_time && note.deleted_time > 0);
 }
 
-export function buildExpectedCalendarNoteTitles(
+function buildExpectedCalendarNoteTitles(
   year: number,
   month: number,
   settings: CalendarSettings,
@@ -396,7 +396,6 @@ export async function getExistingCalendarNoteMarkers(
   month: number,
   settings: CalendarSettings,
 ): Promise<ExistingCalendarNoteMarkers> {
-  const dates = new Set<string>();
   const datesByNoteId = new Map<string, string>();
   const notesByDate = new Map<string, NoteSummary[]>();
 
@@ -424,7 +423,6 @@ export async function getExistingCalendarNoteMarkers(
       );
 
       if (dateId) {
-        dates.add(dateId);
         datesByNoteId.set(note.id, dateId);
         appendNoteForDate(notesByDate, dateId, note);
       }
@@ -446,7 +444,7 @@ export async function getExistingCalendarNoteMarkers(
     noteCountsByDate.set(dateId, notes.length);
   }
 
-  return { dates, datesByNoteId, noteCountsByDate, notesByDate };
+  return { datesByNoteId, noteCountsByDate, notesByDate };
 }
 
 async function makeUniqueNoteTitle(baseTitle: string): Promise<string> {

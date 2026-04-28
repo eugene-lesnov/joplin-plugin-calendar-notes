@@ -13,10 +13,10 @@ import {
   SETTING_NOTE_MODE,
   SETTING_WEEK_START,
   SETTING_ZEN_MODE_TITLE_FORMAT,
-} from "./constants";
-import { weekdayLongName } from "./dateUtils";
-import strings from "./localization";
-import type { CalendarNoteMode, CalendarSettings, WeekStart } from "./types";
+} from "../core/constants";
+import { weekdayLongName } from "../core/dateUtils";
+import strings from "../core/localization";
+import type { CalendarNoteMode, CalendarSettings, WeekStart } from "../core/types";
 
 const ZEN_MODE_TITLE_PLACEHOLDER_PATTERN = /\{\{\s*zenModeTitle\s*\}\}/;
 
