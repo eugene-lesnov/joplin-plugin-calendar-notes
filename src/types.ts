@@ -1,5 +1,5 @@
 export type WeekStart = "monday" | "sunday";
-export type CalendarNoteMode = "single" | "multiple";
+export type CalendarNoteMode = "zen" | "flow";
 
 export type CalendarMessage =
   | { name: "openDate"; date: string }
@@ -38,8 +38,8 @@ export type FolderSummary = {
 
 export type CalendarSettings = {
   noteMode: CalendarNoteMode;
-  noteTitleFormat: string;
-  multipleNoteTitleFormat: string;
+  zenModeTitleFormat: string;
+  flowModeTitleFormat: string;
   weekStart: WeekStart;
   calendarNotesPath: string;
   calendarNoteTemplatePath: string;

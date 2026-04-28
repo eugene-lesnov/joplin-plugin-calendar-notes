@@ -1,7 +1,7 @@
 import joplin from "api";
 
 import {
-  DEFAULT_MULTIPLE_NOTE_TITLE_FORMAT,
+  DEFAULT_FLOW_MODE_TITLE_FORMAT,
   PLUGIN_ID,
 } from "./constants";
 import {
@@ -30,7 +30,7 @@ import type {
 const NOTE_PAGE_LIMIT = 100;
 const NOTE_FIELDS = ["id", "title", "parent_id", "deleted_time"];
 
-const DATE_TITLE_PLACEHOLDER_PATTERN = /\{\{\s*dateTitle\s*\}\}/g;
+const ZEN_MODE_TITLE_PLACEHOLDER_PATTERN = /\{\{\s*zenModeTitle\s*\}\}/g;
 const DATE_PLACEHOLDER_PATTERN = /\{\{\s*date:([^}]+)\s*\}\}/g;
 const TEXT_PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z]+)\s*\}\}/g;
 const TEMPLATE_PLACEHOLDER_PATTERN = /\{\{\s*([^{}]+?)\s*\}\}/g;
@@ -45,7 +45,7 @@ export function buildNoteTitle(
   settings: CalendarSettings,
 ): string {
   const date = parseDateId(dateId);
-  return formatDateByPattern(date, settings.noteTitleFormat);
+  return formatDateByPattern(date, settings.zenModeTitleFormat);
 }
 
 export function isDeletedNote(note: NoteSummary): boolean {
@@ -96,17 +96,17 @@ function renderTemplatePattern(
   return pattern;
 }
 
-function buildMultipleNoteTitlePattern(
+function buildFlowModeTitlePattern(
   dateId: string,
   settings: CalendarSettings,
 ): RegExp {
-  const format = settings.multipleNoteTitleFormat || DEFAULT_MULTIPLE_NOTE_TITLE_FORMAT;
+  const format = settings.flowModeTitleFormat || DEFAULT_FLOW_MODE_TITLE_FORMAT;
   const date = parseDateId(dateId);
-  const dateTitle = buildNoteTitle(dateId, settings);
+  const zenModeTitle = buildNoteTitle(dateId, settings);
   const exactReplacements: Record<string, string> = {
-    title: dateTitle,
-    noteTitle: dateTitle,
-    dateTitle,
+    title: zenModeTitle,
+    noteTitle: zenModeTitle,
+    zenModeTitle,
     ...getDateReplacements(dateId),
   };
 
@@ -132,13 +132,13 @@ export function isCalendarNoteTitleForDate(
   dateId: string,
   settings: CalendarSettings,
 ): boolean {
-  const dateTitle = buildNoteTitle(dateId, settings);
+  const zenModeTitle = buildNoteTitle(dateId, settings);
 
-  if (title === dateTitle) {
+  if (title === zenModeTitle) {
     return true;
   }
 
-  return settings.noteMode === "multiple" && buildMultipleNoteTitlePattern(
+  return settings.noteMode === "flow" && buildFlowModeTitlePattern(
     dateId,
     settings,
   ).test(title);
@@ -152,7 +152,7 @@ export function resolveCalendarNoteDateId(
 ): string | null {
   const expectedTitles = buildExpectedCalendarNoteTitles(year, month, settings);
 
-  if (settings.noteMode === "single") {
+  if (settings.noteMode === "zen") {
     return expectedTitles.get(title) ?? null;
   }
 
@@ -305,25 +305,25 @@ function formatTimeForTitle(date: Date): string {
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
-function renderMultipleNoteTitle(
+function renderFlowModeTitle(
   dateId: string,
   settings: CalendarSettings,
   createdAt = new Date(),
 ): string {
-  const format = settings.multipleNoteTitleFormat || DEFAULT_MULTIPLE_NOTE_TITLE_FORMAT;
+  const format = settings.flowModeTitleFormat || DEFAULT_FLOW_MODE_TITLE_FORMAT;
   const date = parseDateId(dateId);
-  const dateTitle = buildNoteTitle(dateId, settings);
+  const zenModeTitle = buildNoteTitle(dateId, settings);
 
-  let title = format.replace(DATE_TITLE_PLACEHOLDER_PATTERN, dateTitle);
+  let title = format.replace(ZEN_MODE_TITLE_PLACEHOLDER_PATTERN, zenModeTitle);
 
   title = title.replace(DATE_PLACEHOLDER_PATTERN, (_, pattern: string) => {
     return formatDateExpression(date, pattern.trim());
   });
 
   const replacements: Record<string, string> = {
-    title: dateTitle,
-    noteTitle: dateTitle,
-    dateTitle,
+    title: zenModeTitle,
+    noteTitle: zenModeTitle,
+    zenModeTitle,
     time: formatTimeForTitle(createdAt),
     ...getDateReplacements(dateId),
   };
@@ -332,7 +332,7 @@ function renderMultipleNoteTitle(
     return replacements[key] ?? match;
   });
 
-  return title.trim() || dateTitle;
+  return title.trim() || zenModeTitle;
 }
 
 async function getCalendarNotesFolderIdForCreate(
@@ -492,7 +492,7 @@ async function createCalendarNote(
 }
 
 
-async function openOrCreateSingleCalendarNote(
+async function openOrCreateZenModeCalendarNote(
   dateId: string,
   settings: CalendarSettings,
 ): Promise<void> {
@@ -511,11 +511,11 @@ async function openOrCreateSingleCalendarNote(
   }
 }
 
-async function createMultipleCalendarNote(
+async function createFlowModeCalendarNote(
   dateId: string,
   settings: CalendarSettings,
 ): Promise<void> {
-  const baseTitle = renderMultipleNoteTitle(dateId, settings);
+  const baseTitle = renderFlowModeTitle(dateId, settings);
   const title = await makeUniqueNoteTitle(baseTitle);
   const created = await createCalendarNote(dateId, title, settings);
 
@@ -524,20 +524,20 @@ async function createMultipleCalendarNote(
   }
 }
 
-async function openOrCreateMultipleCalendarNote(
+async function openOrCreateFlowModeCalendarNote(
   dateId: string,
   settings: CalendarSettings,
 ): Promise<void> {
-  await createMultipleCalendarNote(dateId, settings);
+  await createFlowModeCalendarNote(dateId, settings);
 }
 
 export async function openOrCreateCalendarNote(dateId: string): Promise<void> {
   const settings = await getCalendarSettings();
 
-  if (settings.noteMode === "multiple") {
-    await openOrCreateMultipleCalendarNote(dateId, settings);
+  if (settings.noteMode === "flow") {
+    await openOrCreateFlowModeCalendarNote(dateId, settings);
     return;
   }
 
-  await openOrCreateSingleCalendarNote(dateId, settings);
+  await openOrCreateZenModeCalendarNote(dateId, settings);
 }

@@ -2,12 +2,12 @@ export interface AppLocalization {
   settingsSectionLabel: string;
   noteModeLabel: string;
   noteModeDescription: string;
-  singleNoteModeLabel: string;
-  multipleNoteModeLabel: string;
-  noteTitleFormatLabel: string;
-  noteTitleFormatDescription: string;
-  multipleNoteTitleFormatLabel: string;
-  multipleNoteTitleFormatDescription: string;
+  zenModeLabel: string;
+  flowModeLabel: string;
+  zenModeTitleFormatLabel: string;
+  zenModeTitleFormatDescription: string;
+  flowModeTitleFormatLabel: string;
+  flowModeTitleFormatDescription: string;
   weekStartLabel: string;
   weekStartDescription: string;
   calendarNotesPathLabel: string;
@@ -32,17 +32,17 @@ const PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
 
 const defaultStrings: AppLocalization = {
   settingsSectionLabel: "Calendar Notes",
-  noteModeLabel: "Calendar note mode",
+  noteModeLabel: "Mode",
   noteModeDescription:
-    "Choose whether one calendar day opens a single note or can contain multiple notes.",
-  singleNoteModeLabel: "Zen mode: one note per day",
-  multipleNoteModeLabel: "Flow mode: multiple notes per day",
-  noteTitleFormatLabel: "Note title format",
-  noteTitleFormatDescription:
-    "Format for created/opened calendar notes. Put date expressions in {{...}}; text outside is used as-is. Supported tokens inside {{...}}: YYYY/yyyy, YY, MM/mm, M/m, dd/DD, d/D. Example: Calendar {{dd.mm.YYYY}}.",
-  multipleNoteTitleFormatLabel: "Multiple note title format",
-  multipleNoteTitleFormatDescription:
-    "Format for notes created in multiple-notes mode. It must include {{dateTitle}} so the plugin can reliably match notes to a day. Supported placeholders: {{dateTitle}}, {{date}}, {{time}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}. Default: {{dateTitle}} - {{time}}.",
+    "Choose how a calendar day is represented: as a single note (Zen mode) or as a stream of notes (Flow mode).",
+  zenModeLabel: "Zen mode: one note per day",
+  flowModeLabel: "Flow mode: multiple notes per day",
+  zenModeTitleFormatLabel: "Zen mode: note title format",
+  zenModeTitleFormatDescription:
+    "Format used in Zen mode for the single note of a day. The same value is also substituted as {{zenModeTitle}} in the Flow mode title format, so it must uniquely identify the day. Put date expressions in {{...}}; plain text outside the braces is kept as-is. Supported tokens inside {{...}}: YYYY/yyyy, YY, MM/mm, M/m, dd/DD, d/D. Example: Calendar {{dd.mm.YYYY}}.",
+  flowModeTitleFormatLabel: "Flow mode: note title format",
+  flowModeTitleFormatDescription:
+    "Format used in Flow mode for each note of a day. Must contain {{zenModeTitle}} — it expands to the title produced by the Zen mode format, allowing the plugin to reliably match notes to a day. Supported placeholders: {{zenModeTitle}}, {{date}}, {{time}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}. Default: {{zenModeTitle}} - {{time}}.",
   weekStartLabel: "Week starts on",
   weekStartDescription: "Controls the first day of week in the calendar panel.",
   calendarNotesPathLabel: "Calendar notes notebook path",
@@ -70,17 +70,17 @@ const defaultStrings: AppLocalization = {
 const localizations: Record<string, Partial<AppLocalization>> = {
   ru: {
     settingsSectionLabel: "Calendar Notes",
-    noteModeLabel: "Режим календарных заметок",
+    noteModeLabel: "Режим",
     noteModeDescription:
-      "Определяет, будет ли один день открывать одну заметку или сможет содержать несколько заметок.",
-    singleNoteModeLabel: "Дзен-режим: одна заметка на день",
-    multipleNoteModeLabel: "Режим потока: несколько заметок на день",
-    noteTitleFormatLabel: "Формат заголовка заметки",
-    noteTitleFormatDescription:
-      "Формат заголовков календарных заметок при создании и открытии. Выражения даты пишите в {{...}}, обычный текст - без скобок. Поддерживаемые токены внутри {{...}}: YYYY/yyyy, YY, MM/mm, M/m, dd/DD, d/D. Пример: Календарь {{dd.mm.YYYY}}.",
-    multipleNoteTitleFormatLabel: "Формат заголовка заметок в режиме нескольких заметок",
-    multipleNoteTitleFormatDescription:
-      "Формат заголовков заметок, создаваемых в режиме нескольких заметок на день. Он должен содержать {{dateTitle}}, чтобы плагин мог надежно связывать заметки с днем. Поддерживаемые подстановки: {{dateTitle}}, {{date}}, {{time}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}. По умолчанию: {{dateTitle}} - {{time}}.",
+      "Определяет, как отображается календарный день: как одна заметка (Дзен) или как поток заметок (Поток).",
+    zenModeLabel: "Дзен: одна заметка на день",
+    flowModeLabel: "Поток: несколько заметок на день",
+    zenModeTitleFormatLabel: "Дзен: формат заголовка заметки",
+    zenModeTitleFormatDescription:
+      "Формат заголовка для режима Дзен — единственной заметки дня. Тот же заголовок подставляется как {{zenModeTitle}} в формате режима Поток, поэтому он должен однозначно соответствовать дню. Выражения даты пишите в {{...}}, обычный текст вне скобок остаётся как есть. Поддерживаемые токены внутри {{...}}: YYYY/yyyy, YY, MM/mm, M/m, dd/DD, d/D. Пример: Календарь {{dd.mm.YYYY}}.",
+    flowModeTitleFormatLabel: "Поток: формат заголовка заметки",
+    flowModeTitleFormatDescription:
+      "Формат заголовка для режима Поток — каждой заметки дня. Должен содержать {{zenModeTitle}} — он подставляет заголовок, полученный по формату режима Дзен, чтобы плагин мог связывать заметки с конкретным днём. Поддерживаемые подстановки: {{zenModeTitle}}, {{date}}, {{time}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}.",
     weekStartLabel: "Первый день недели",
     weekStartDescription: "Определяет, с какого дня начинается неделя в календаре.",
     calendarNotesPathLabel: "Путь к блокноту с календарными заметками",

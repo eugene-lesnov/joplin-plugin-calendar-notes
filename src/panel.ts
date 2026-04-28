@@ -111,7 +111,7 @@ function renderDayMarkerHtml(
     return "";
   }
 
-  if (settings.noteMode === "multiple") {
+  if (settings.noteMode === "flow") {
     return `<span class="note-count">${noteCount}</span>`;
   }
 
@@ -123,7 +123,7 @@ function buildDayButtonTitle(
   noteCount: number,
   settings: CalendarSettings,
 ): string {
-  if (settings.noteMode === "multiple") {
+  if (settings.noteMode === "flow") {
     return formatLocalizedString(strings.createDateNoteTitle, {
       title: noteTitle,
       count: noteCount,
