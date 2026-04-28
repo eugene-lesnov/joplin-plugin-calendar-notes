@@ -105,18 +105,14 @@ function formatMonthLabel(year: number, month: number): string {
   }
 }
 
-function renderDayMarkerHtml(
-  noteCount: number,
-  settings: CalendarSettings,
-): string {
+function renderDayMarkerHtml(noteCount: number): string {
   if (noteCount <= 0) {
     return "";
   }
 
-  if (settings.noteMode === "flow") {
-    return `<span class="note-count">${noteCount}</span>`;
-  }
-
+  // Точка показывается одинаково в обоих режимах: в режиме «Поток» список
+  // заметок дня и так отображается под календарём, поэтому счётчик на иконке
+  // дня не нужен.
   return '<span class="dot"></span>';
 }
 
@@ -224,7 +220,7 @@ function renderCalendarHtml(
       .join(" ");
 
     const title = buildDayButtonTitle(noteTitle, noteCount, settings);
-    const markerHtml = renderDayMarkerHtml(noteCount, settings);
+    const markerHtml = renderDayMarkerHtml(noteCount);
 
     cells.push(`
 			<button
