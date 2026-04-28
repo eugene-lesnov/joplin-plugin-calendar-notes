@@ -10,10 +10,11 @@ import {
 } from "./dateUtils";
 import strings, { formatLocalizedString, getLocales } from "./localization";
 import {
-  buildExpectedCalendarNoteTitles,
   buildNoteTitle,
   getExistingCalendarNoteMarkers,
+  isCalendarNoteTitleForDate,
   isDeletedNote,
+  resolveCalendarNoteDateId,
 } from "./notes";
 import { getCalendarSettings } from "./settings";
 import type {
@@ -102,10 +103,43 @@ function formatMonthLabel(year: number, month: number): string {
   }
 }
 
+function renderDayMarkerHtml(
+  noteCount: number,
+  settings: CalendarSettings,
+): string {
+  if (noteCount <= 0) {
+    return "";
+  }
+
+  if (settings.noteMode === "multiple") {
+    return `<span class="note-count">${noteCount}</span>`;
+  }
+
+  return '<span class="dot"></span>';
+}
+
+function buildDayButtonTitle(
+  noteTitle: string,
+  noteCount: number,
+  settings: CalendarSettings,
+): string {
+  if (settings.noteMode === "multiple") {
+    return formatLocalizedString(strings.createDateNoteTitle, {
+      title: noteTitle,
+      count: noteCount,
+    });
+  }
+
+  return formatLocalizedString(
+    noteCount > 0 ? strings.openNoteTitle : strings.createNoteTitle,
+    { title: noteTitle },
+  );
+}
+
 function renderCalendarHtml(
   year: number,
   month: number,
-  existingDates: Set<string>,
+  noteCountsByDate: Map<string, number>,
   settings: CalendarSettings,
 ): string {
   const today = new Date();
@@ -137,17 +171,16 @@ function renderCalendarHtml(
   for (let day = 1; day <= totalDays; day++) {
     const dateId = formatDateId(year, month, day);
     const noteTitle = buildNoteTitle(dateId, settings);
-    const hasNote = existingDates.has(dateId);
+    const noteCount = noteCountsByDate.get(dateId) ?? 0;
+    const hasNote = noteCount > 0;
     const isToday = dateId === todayId;
 
     const classes = ["day", hasNote ? "has-note" : "", isToday ? "today" : ""]
       .filter(Boolean)
       .join(" ");
 
-    const title = formatLocalizedString(
-      hasNote ? strings.openNoteTitle : strings.createNoteTitle,
-      { title: noteTitle },
-    );
+    const title = buildDayButtonTitle(noteTitle, noteCount, settings);
+    const markerHtml = renderDayMarkerHtml(noteCount, settings);
 
     cells.push(`
 			<button
@@ -157,7 +190,7 @@ function renderCalendarHtml(
 				title="${escapeHtml(title)}"
 			>
 				<span class="day-number">${day}</span>
-				${hasNote ? '<span class="dot"></span>' : ""}
+				${markerHtml}
 			</button>
 		`);
   }
@@ -200,7 +233,7 @@ export async function renderCalendar(): Promise<void> {
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
-    existingMarkers.dates,
+    existingMarkers.noteCountsByDate,
     settings,
   );
 
@@ -253,7 +286,7 @@ export async function hasStaleVisibleCalendarNoteMarkers(): Promise<boolean> {
       return true;
     }
 
-    if (note.title !== buildNoteTitle(dateId, settings)) {
+    if (!isCalendarNoteTitleForDate(note.title, dateId, settings)) {
       return true;
     }
   }
@@ -284,13 +317,10 @@ export async function shouldRefreshCalendarForNoteChange(
   }
 
   const settings = await getCalendarSettings();
-  const expectedTitles = buildExpectedCalendarNoteTitles(
-    currentYear,
-    currentMonth,
-    settings,
-  );
 
-  return expectedTitles.has(note.title);
+  return Boolean(
+    resolveCalendarNoteDateId(note.title, currentYear, currentMonth, settings),
+  );
 }
 
 export async function showCalendarPanel(): Promise<void> {

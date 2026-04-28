@@ -123,6 +123,22 @@
     transform: translateX(-50%);
 }
 
+.note-count {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    min-width: 13px;
+    height: 13px;
+    box-sizing: border-box;
+    padding: 0 3px;
+    border-radius: 7px;
+    background: var(--joplin-color);
+    color: var(--joplin-background-color);
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 13px;
+}
+
 .legend {
     margin-top: 10px;
     font-size: 11px;

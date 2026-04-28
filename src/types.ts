@@ -1,4 +1,5 @@
 export type WeekStart = "monday" | "sunday";
+export type CalendarNoteMode = "single" | "multiple";
 
 export type CalendarMessage =
   | { name: "openDate"; date: string }
@@ -17,6 +18,7 @@ export type NoteSummary = {
 export type ExistingCalendarNoteMarkers = {
   dates: Set<string>;
   datesByNoteId: Map<string, string>;
+  noteCountsByDate: Map<string, number>;
 };
 
 export type NoteChangeEvent = {
@@ -35,7 +37,9 @@ export type FolderSummary = {
 };
 
 export type CalendarSettings = {
+  noteMode: CalendarNoteMode;
   noteTitleFormat: string;
+  multipleNoteTitleFormat: string;
   weekStart: WeekStart;
   calendarNotesPath: string;
   calendarNoteTemplatePath: string;
