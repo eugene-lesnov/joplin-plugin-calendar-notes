@@ -1,6 +1,6 @@
 {
   "name": "joplin-plugin-calendar-notes",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Create notes for any day in the calendar",
   "author": "Eugene Lesnov",
   "scripts": {
