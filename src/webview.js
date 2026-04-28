@@ -17,6 +17,30 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  if (action === "selectDate") {
+    await webviewApi.postMessage({
+      name: "selectDate",
+      date: target.dataset.date,
+    });
+    return;
+  }
+
+  if (action === "openNote") {
+    await webviewApi.postMessage({
+      name: "openNote",
+      id: target.dataset.noteId,
+    });
+    return;
+  }
+
+  if (action === "createNote") {
+    await webviewApi.postMessage({
+      name: "createNote",
+      date: target.dataset.date,
+    });
+    return;
+  }
+
   if (action === "prevMonth") {
     await webviewApi.postMessage({
       name: "prevMonth",

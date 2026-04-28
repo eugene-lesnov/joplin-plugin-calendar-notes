@@ -10,7 +10,10 @@ import {
   SETTING_ZEN_MODE_TITLE_FORMAT,
 } from "./constants";
 import strings, { getLocales, setLocale } from "./localization";
-import { openOrCreateCalendarNote } from "./notes";
+import {
+  createFlowModeCalendarNote,
+  openOrCreateCalendarNote,
+} from "./notes";
 import {
   goToNextMonth,
   goToPrevMonth,
@@ -21,6 +24,7 @@ import {
   refreshCalendarNow,
   renderCalendar,
   scheduleCalendarRefresh,
+  selectCalendarDate,
   setupPanel,
   shouldRefreshCalendarForNoteChange,
   toggleCalendarPanel,
@@ -51,6 +55,22 @@ const RENDER_AFFECTING_SETTINGS = [
 async function handlePanelMessage(message: CalendarMessage): Promise<void> {
   if (message.name === "openDate") {
     await openOrCreateCalendarNote(message.date);
+    await renderCalendar();
+    return;
+  }
+
+  if (message.name === "selectDate") {
+    await selectCalendarDate(message.date);
+    return;
+  }
+
+  if (message.name === "openNote") {
+    await joplin.commands.execute("openNote", message.id);
+    return;
+  }
+
+  if (message.name === "createNote") {
+    await createFlowModeCalendarNote(message.date);
     await renderCalendar();
     return;
   }

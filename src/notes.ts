@@ -376,11 +376,19 @@ async function findNoteByExactTitleAnywhere(
 }
 
 
-function incrementNoteCount(
-  noteCountsByDate: Map<string, number>,
+function appendNoteForDate(
+  notesByDate: Map<string, NoteSummary[]>,
   dateId: string,
+  note: NoteSummary,
 ): void {
-  noteCountsByDate.set(dateId, (noteCountsByDate.get(dateId) ?? 0) + 1);
+  const existing = notesByDate.get(dateId);
+
+  if (existing) {
+    existing.push(note);
+    return;
+  }
+
+  notesByDate.set(dateId, [note]);
 }
 
 export async function getExistingCalendarNoteMarkers(
@@ -390,7 +398,7 @@ export async function getExistingCalendarNoteMarkers(
 ): Promise<ExistingCalendarNoteMarkers> {
   const dates = new Set<string>();
   const datesByNoteId = new Map<string, string>();
-  const noteCountsByDate = new Map<string, number>();
+  const notesByDate = new Map<string, NoteSummary[]>();
 
   let page = 1;
 
@@ -418,7 +426,7 @@ export async function getExistingCalendarNoteMarkers(
       if (dateId) {
         dates.add(dateId);
         datesByNoteId.set(note.id, dateId);
-        incrementNoteCount(noteCountsByDate, dateId);
+        appendNoteForDate(notesByDate, dateId, note);
       }
     }
 
@@ -429,7 +437,16 @@ export async function getExistingCalendarNoteMarkers(
     page += 1;
   }
 
-  return { dates, datesByNoteId, noteCountsByDate };
+  for (const notes of notesByDate.values()) {
+    notes.sort((first, second) => first.title.localeCompare(second.title));
+  }
+
+  const noteCountsByDate = new Map<string, number>();
+  for (const [dateId, notes] of notesByDate) {
+    noteCountsByDate.set(dateId, notes.length);
+  }
+
+  return { dates, datesByNoteId, noteCountsByDate, notesByDate };
 }
 
 async function makeUniqueNoteTitle(baseTitle: string): Promise<string> {
@@ -511,31 +528,25 @@ async function openOrCreateZenModeCalendarNote(
   }
 }
 
-async function createFlowModeCalendarNote(
+export async function createFlowModeCalendarNote(
   dateId: string,
-  settings: CalendarSettings,
+  settings?: CalendarSettings,
 ): Promise<void> {
-  const baseTitle = renderFlowModeTitle(dateId, settings);
+  const effectiveSettings = settings ?? (await getCalendarSettings());
+  const baseTitle = renderFlowModeTitle(dateId, effectiveSettings);
   const title = await makeUniqueNoteTitle(baseTitle);
-  const created = await createCalendarNote(dateId, title, settings);
+  const created = await createCalendarNote(dateId, title, effectiveSettings);
 
   if (created) {
     await joplin.commands.execute("openNote", created.id);
   }
 }
 
-async function openOrCreateFlowModeCalendarNote(
-  dateId: string,
-  settings: CalendarSettings,
-): Promise<void> {
-  await createFlowModeCalendarNote(dateId, settings);
-}
-
 export async function openOrCreateCalendarNote(dateId: string): Promise<void> {
   const settings = await getCalendarSettings();
 
   if (settings.noteMode === "flow") {
-    await openOrCreateFlowModeCalendarNote(dateId, settings);
+    await createFlowModeCalendarNote(dateId, settings);
     return;
   }
 

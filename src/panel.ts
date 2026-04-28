@@ -31,6 +31,8 @@ let currentYear: number;
 let currentMonth: number; // январь = 0
 let visibleCalendarNoteIds = new Set<string>();
 let visibleCalendarNoteDatesById = new Map<string, string>();
+let visibleNotesByDate: Map<string, NoteSummary[]> = new Map();
+let selectedDateId: string | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 export async function setupPanel(
@@ -136,10 +138,44 @@ function buildDayButtonTitle(
   );
 }
 
+function renderSelectedDaySectionHtml(
+  dateId: string,
+  notes: readonly NoteSummary[],
+  settings: CalendarSettings,
+): string {
+  const heading = formatLocalizedString(strings.selectedDayLabel, {
+    date: buildNoteTitle(dateId, settings),
+  });
+
+  const items = notes.length === 0
+    ? `<div class="selected-day-empty">${escapeHtml(strings.noNotesForDayLabel)}</div>`
+    : `<ul class="selected-day-list">${notes
+        .map(
+          (note) => `<li><button
+            class="day-note"
+            data-action="openNote"
+            data-note-id="${escapeHtml(note.id)}"
+            title="${escapeHtml(note.title)}"
+          >${escapeHtml(note.title)}</button></li>`,
+        )
+        .join("")}</ul>`;
+
+  return `
+    <div class="selected-day">
+      <div class="selected-day-header">${escapeHtml(heading)}</div>
+      ${items}
+      <button class="create-note-button" data-action="createNote" data-date="${escapeHtml(dateId)}">
+        ${escapeHtml(strings.createNoteButtonLabel)}
+      </button>
+    </div>
+  `;
+}
+
 function renderCalendarHtml(
   year: number,
   month: number,
   noteCountsByDate: Map<string, number>,
+  notesByDate: Map<string, NoteSummary[]>,
   settings: CalendarSettings,
 ): string {
   const today = new Date();
@@ -168,14 +204,22 @@ function renderCalendarHtml(
     cells.push('<div class="day day-empty"></div>');
   }
 
+  const dayAction = settings.noteMode === "flow" ? "selectDate" : "openDate";
+
   for (let day = 1; day <= totalDays; day++) {
     const dateId = formatDateId(year, month, day);
     const noteTitle = buildNoteTitle(dateId, settings);
     const noteCount = noteCountsByDate.get(dateId) ?? 0;
     const hasNote = noteCount > 0;
     const isToday = dateId === todayId;
+    const isSelected = settings.noteMode === "flow" && dateId === selectedDateId;
 
-    const classes = ["day", hasNote ? "has-note" : "", isToday ? "today" : ""]
+    const classes = [
+      "day",
+      hasNote ? "has-note" : "",
+      isToday ? "today" : "",
+      isSelected ? "selected" : "",
+    ]
       .filter(Boolean)
       .join(" ");
 
@@ -185,7 +229,7 @@ function renderCalendarHtml(
     cells.push(`
 			<button
 				class="${classes}"
-				data-action="openDate"
+				data-action="${dayAction}"
 				data-date="${escapeHtml(dateId)}"
 				title="${escapeHtml(title)}"
 			>
@@ -222,6 +266,16 @@ function renderCalendarHtml(
 			<div class="calendar-grid">
 				${cells.join("\n")}
 			</div>
+
+			${
+              settings.noteMode === "flow" && selectedDateId
+                ? renderSelectedDaySectionHtml(
+                    selectedDateId,
+                    notesByDate.get(selectedDateId) ?? [],
+                    settings,
+                  )
+                : ""
+            }
 		</div>
 	`;
 }
@@ -236,11 +290,17 @@ export async function renderCalendar(): Promise<void> {
   );
   visibleCalendarNoteIds = new Set(existingMarkers.datesByNoteId.keys());
   visibleCalendarNoteDatesById = new Map(existingMarkers.datesByNoteId);
+  visibleNotesByDate = existingMarkers.notesByDate;
+
+  if (settings.noteMode !== "flow") {
+    selectedDateId = null;
+  }
 
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
     existingMarkers.noteCountsByDate,
+    existingMarkers.notesByDate,
     settings,
   );
 
@@ -351,6 +411,7 @@ export async function goToToday(): Promise<void> {
 
   currentYear = today.getFullYear();
   currentMonth = today.getMonth();
+  selectedDateId = null;
 
   await renderCalendar();
 }
@@ -363,6 +424,8 @@ export async function goToPrevMonth(): Promise<void> {
     currentYear -= 1;
   }
 
+  selectedDateId = null;
+
   await renderCalendar();
 }
 
@@ -374,5 +437,29 @@ export async function goToNextMonth(): Promise<void> {
     currentYear += 1;
   }
 
+  selectedDateId = null;
+
   await renderCalendar();
+}
+
+export async function selectCalendarDate(dateId: string): Promise<void> {
+  const settings = await getCalendarSettings();
+
+  if (settings.noteMode !== "flow") {
+    return;
+  }
+
+  selectedDateId = dateId === selectedDateId ? null : dateId;
+
+  const html = renderCalendarHtml(
+    currentYear,
+    currentMonth,
+    new Map(
+      [...visibleNotesByDate.entries()].map(([date, notes]) => [date, notes.length]),
+    ),
+    visibleNotesByDate,
+    settings,
+  );
+
+  await joplin.views.panels.setHtml(panelHandle, html);
 }

@@ -4,8 +4,8 @@ A Joplin plugin that adds a calendar panel for daily notes.
 
 ## Modes
 
-- **Zen** — one note per day. Click a day → open or create the day's note.
-- **Flow** — multiple notes per day. Click a day → create a new timestamped note; the day cell shows a counter of existing notes.
+- **Zen** — one note per day. Click a day -> open or create the day's note.
+- **Flow** — multiple notes per day. Click a day -> select it; a section below the calendar lists that day's notes (click to open) and provides a `+ New note` button. The day cell shows a counter of existing notes.
 
 Switch modes in **Tools → Options → Calendar Notes**.
 

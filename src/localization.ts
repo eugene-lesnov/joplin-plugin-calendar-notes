@@ -23,6 +23,9 @@ export interface AppLocalization {
   nextMonthTitle: string;
   todayButtonLabel: string;
   refreshCalendarTitle: string;
+  selectedDayLabel: string;
+  createNoteButtonLabel: string;
+  noNotesForDayLabel: string;
   createCalendarNoteNoNotebookError: string;
   createCalendarNoteTemplateReadError: string;
 }
@@ -59,6 +62,9 @@ const defaultStrings: AppLocalization = {
   nextMonthTitle: "Next month",
   todayButtonLabel: "Today",
   refreshCalendarTitle: "Refresh calendar note markers",
+  selectedDayLabel: "Notes for {{date}}:",
+  createNoteButtonLabel: "+ New note",
+  noNotesForDayLabel: "No notes yet.",
   createCalendarNoteNoNotebookError:
     "Cannot create a calendar note: no notebook was found.",
   createCalendarNoteTemplateReadError:
@@ -96,6 +102,9 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     nextMonthTitle: "Следующий месяц",
     todayButtonLabel: "Сегодня",
     refreshCalendarTitle: "Обновить отметки календарных заметок",
+    selectedDayLabel: "Заметки за {{date}}:",
+    createNoteButtonLabel: "+ Новая заметка",
+    noNotesForDayLabel: "Заметок пока нет.",
     createCalendarNoteNoNotebookError: "Не удалось создать календарную заметку: блокнот не найден.",
     createCalendarNoteTemplateReadError:
       "Не удалось создать календарную заметку: не получилось найти или прочитать заметку-шаблон {{path}}.",

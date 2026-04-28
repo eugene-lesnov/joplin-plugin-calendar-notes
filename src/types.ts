@@ -3,6 +3,9 @@ export type CalendarNoteMode = "zen" | "flow";
 
 export type CalendarMessage =
   | { name: "openDate"; date: string }
+  | { name: "selectDate"; date: string }
+  | { name: "openNote"; id: string }
+  | { name: "createNote"; date: string }
   | { name: "prevMonth" }
   | { name: "nextMonth" }
   | { name: "today" }
@@ -19,6 +22,7 @@ export type ExistingCalendarNoteMarkers = {
   dates: Set<string>;
   datesByNoteId: Map<string, string>;
   noteCountsByDate: Map<string, number>;
+  notesByDate: Map<string, NoteSummary[]>;
 };
 
 export type NoteChangeEvent = {
