@@ -107,7 +107,7 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     noNotesForDayLabel: "Заметок пока нет.",
     createCalendarNoteNoNotebookError: "Не удалось создать календарную заметку: блокнот не найден.",
     createCalendarNoteTemplateReadError:
-      "Не удалось создать календарную заметку: не получилось найти или прочитать заметку-шаблон {{path}}.",
+      "Не удалось создать календарную заметку: не получилось найти или прочитать заметку-шаблон {{path}}",
   },
 };
 
