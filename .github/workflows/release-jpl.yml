@@ -1,0 +1,64 @@
+name: Release JPL on tag push
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-jpl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check versions
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          MANIFEST_VERSION=$(node -p "require('./src/manifest.json').version")
+
+          echo "Tag version: $TAG_VERSION"
+          echo "package.json version: $PACKAGE_VERSION"
+          echo "manifest.json version: $MANIFEST_VERSION"
+
+          if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+            echo "package.json version does not match tag"
+            exit 1
+          fi
+
+          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
+            echo "src/manifest.json version does not match tag"
+            exit 1
+          fi
+
+      - name: Build Joplin plugin
+        run: npm run dist
+
+      - name: Check publish artifacts
+        run: |
+          ls -la publish
+          test -n "$(find publish -maxdepth 1 -name '*.jpl' -print -quit)"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            publish/*.jpl \
+            publish/*.json \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Release ${GITHUB_REF_NAME}"
