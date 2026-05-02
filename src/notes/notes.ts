@@ -15,7 +15,6 @@ import {
 } from "../core/dateUtils";
 import strings, { formatLocalizedString } from "../core/localization";
 import {
-  ensureNotebookPath,
   getFallbackFolderId,
   resolveNotebookPath,
   splitNotebookPath,
@@ -339,7 +338,9 @@ async function getCalendarNotesFolderIdForCreate(
   settings: CalendarSettings,
 ): Promise<string | null> {
   if (settings.calendarNotesPath) {
-    return ensureNotebookPath(settings.calendarNotesPath);
+    const notebook = await resolveNotebookPath(settings.calendarNotesPath);
+
+    return notebook?.id ?? null;
   }
 
   return getFallbackFolderId();

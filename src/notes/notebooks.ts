@@ -94,46 +94,6 @@ export async function resolveNotebookPath(
   return current;
 }
 
-export async function ensureNotebookPath(
-  path: string,
-): Promise<string | null> {
-  const segments = splitNotebookPath(path);
-
-  if (segments.length === 0) {
-    return getFallbackFolderId();
-  }
-
-  const folders = await getAllFolders();
-
-  let parentId = "";
-  let current: FolderSummary | null = null;
-
-  for (const segment of segments) {
-    current = findChildFolder(folders, parentId, segment);
-
-    if (!current) {
-      const payload: Record<string, string> = {
-        title: segment,
-      };
-
-      if (parentId) {
-        payload.parent_id = parentId;
-      }
-
-      current = (await joplin.data.post(
-        ["folders"],
-        null,
-        payload,
-      )) as FolderSummary;
-
-      folders.push(current);
-    }
-
-    parentId = current.id;
-  }
-
-  return current?.id ?? null;
-}
 
 export async function getFallbackFolderId(): Promise<string | null> {
   const selectedFolder = await joplin.workspace.selectedFolder();
