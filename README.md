@@ -14,7 +14,7 @@ Switch modes in **Tools → Options → Calendar Notes**.
 - Calendar panel toggled from the toolbar or **Tools → Toggle Calendar**.
 - Days with existing notes are highlighted.
 - Configurable note title formats (Zen and Flow).
-- Configurable target notebook path for new calendar notes.
+- Automatic notebook structure for new calendar notes using a root path and an optional date-based path pattern.
 - Optional template note with placeholders (`{{title}}`, `{{date}}`, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
 - Week starts on Monday or Sunday.
 - English and Russian UI.
@@ -37,14 +37,15 @@ Joplin **3.5** or newer.
 | Zen mode title format | Title for the day's note, e.g. `{{YYYY-MM-dd}}`                                               |
 | Flow mode title format | Title for each Flow note; must contain `{{zenModeTitle}}`, e.g. `{{zenModeTitle}} - {{time}}` |
 | Week starts on | Monday or Sunday                                                                              |
-| Calendar notes notebook path | Existing notebook path where new notes are created, e.g. `Calendar Notes/2026`; leave empty to use the selected notebook |
+| Calendar notes root notebook path | Root notebook path for new notes, e.g. `Calendar Notes`; missing notebooks are created automatically |
+| Calendar notes path pattern | Optional relative path under the root, e.g. `{{year}}/{{month}}`; leave empty to create notes directly in the root notebook |
 | New calendar note template path | Joplin note used as a body template, e.g. `Templates/Calendar note`                           |
 
 Each setting includes inline help in Joplin with the full list of supported tokens.
 
 ## How notes are matched
 
-Notes are matched globally by title using the configured format. New notes are created in the configured notebook path if it exists, or in the selected notebook if the path is empty.
+Notes are matched globally by title using the configured format. New notes are created under the configured root notebook path. If a path pattern is set, missing nested notebooks are created automatically.
 
 ## License
 

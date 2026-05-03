@@ -12,6 +12,8 @@ export interface AppLocalization {
   weekStartDescription: string;
   calendarNotesPathLabel: string;
   calendarNotesPathDescription: string;
+  calendarNotesPathPatternLabel: string;
+  calendarNotesPathPatternDescription: string;
   noteTemplateLabel: string;
   noteTemplateDescription: string;
   toggleCalendarCommandLabel: string;
@@ -47,9 +49,12 @@ const defaultStrings: AppLocalization = {
     "Format used in Flow mode for each note of a day. Must contain {{zenModeTitle}} — it expands to the title produced by the Zen mode format, allowing the plugin to reliably match notes to a day. Supported placeholders: {{zenModeTitle}}, {{date}}, {{time}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}. Default: {{zenModeTitle}} - {{time}}.",
   weekStartLabel: "Week starts on",
   weekStartDescription: "Controls the first day of week in the calendar panel.",
-  calendarNotesPathLabel: "Calendar notes notebook path",
+  calendarNotesPathLabel: "Calendar notes root notebook path",
   calendarNotesPathDescription:
-    "Notebook path where new calendar notes are created. Example: Calendar Notes/2026. If empty, new notes are created in the selected notebook. Existing calendar notes are searched globally by title in all notebooks.",
+    "Root notebook path for new calendar notes. Default: Calendar Notes. The plugin creates missing notebooks automatically. Existing calendar notes are searched globally by title in all notebooks.",
+  calendarNotesPathPatternLabel: "Calendar notes path pattern",
+  calendarNotesPathPatternDescription:
+    "Relative notebook path under the root notebook. Supported placeholders: {{year}}, {{month}}, {{quarter}}, {{week}}. Leave empty to create new notes directly in the root notebook without nested notebooks.",
   noteTemplateLabel: "New calendar note template path",
   noteTemplateDescription:
     "Joplin note path used as a template for new calendar notes. Example: Templates/Calendar note. If empty, the note body is empty. The template note body supports placeholders: {{title}}, {{date}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}.",
@@ -87,9 +92,12 @@ const localizations: Record<string, Partial<AppLocalization>> = {
       "Формат заголовка для режима Поток — каждой заметки дня. Должен содержать {{zenModeTitle}} — он подставляет заголовок, полученный по формату режима Дзен, чтобы плагин мог связывать заметки с конкретным днём. Поддерживаемые подстановки: {{zenModeTitle}}, {{date}}, {{time}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}.",
     weekStartLabel: "Первый день недели",
     weekStartDescription: "Определяет, с какого дня начинается неделя в календаре.",
-    calendarNotesPathLabel: "Путь к блокноту с календарными заметками",
+    calendarNotesPathLabel: "Корневой путь к блокноту с календарными заметками",
     calendarNotesPathDescription:
-      "Путь к блокноту, в котором будут создаваться новые календарные заметки. Пример: Календарные заметки/2026. Если оставить поле пустым, новые заметки будут создаваться в выбранном блокноте. Уже существующие календарные заметки ищутся по заголовку во всех блокнотах.",
+      "Корневой путь для новых календарных заметок. По умолчанию: Calendar Notes. Плагин автоматически создает отсутствующие блокноты. Уже существующие календарные заметки ищутся по заголовку во всех блокнотах.",
+    calendarNotesPathPatternLabel: "Шаблон пути календарных заметок",
+    calendarNotesPathPatternDescription:
+      "Относительный путь к блокноту внутри корневого пути. Поддерживаемые подстановки: {{year}}, {{month}}, {{quarter}}, {{week}}. Если оставить поле пустым, новые заметки будут создаваться в корневом блокноте без вложенных блокнотов.",
     noteTemplateLabel: "Путь к заметке-шаблону новой календарной заметки",
     noteTemplateDescription:
       "Путь к заметке Joplin, которая используется как шаблон для новых календарных заметок. Пример: Шаблоны/Календарная заметка. Если поле пустое, заметка будет создана без текста. Тело заметки-шаблона поддерживает подстановки: {{title}}, {{date}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}.",

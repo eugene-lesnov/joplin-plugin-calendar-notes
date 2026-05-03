@@ -8,6 +8,8 @@ const REFERENCE_WEEK_MONTH = 0;
 const REFERENCE_WEEK_MONDAY_DAY = 5;
 const WEEKDAY_FORMAT_FALLBACK_WARNING = "Failed to format weekday with plugin locales.";
 const DATE_FORMAT_EXPRESSION_PATTERN = /\{\{\s*([^{}]*?)\s*\}\}/g;
+const ISO_WEEKDAY_SHIFT = 3;
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
 const WEEKDAY_SHORT_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
     weekday: "short",
@@ -119,6 +121,27 @@ export function startOfLocalDayMs(dateId: string): number {
 
 export function daysInMonth(year: number, month: number): number {
     return new Date(year, month + 1, 0).getDate();
+}
+
+export function quarterName(month: number): string {
+    return `Q${Math.floor(month / 3) + 1}`;
+}
+
+export function isoWeekNumber(date: CalendarDate): number {
+    const utcDate = Date.UTC(date.year, date.month, date.day);
+    const currentDate = new Date(utcDate);
+    const day = currentDate.getUTCDay() || DAYS_IN_WEEK;
+
+    currentDate.setUTCDate(currentDate.getUTCDate() + ISO_WEEKDAY_SHIFT - day);
+
+    const firstThursday = new Date(Date.UTC(currentDate.getUTCFullYear(), 0, 4));
+    const firstThursdayDay = firstThursday.getUTCDay() || DAYS_IN_WEEK;
+
+    firstThursday.setUTCDate(
+        firstThursday.getUTCDate() + ISO_WEEKDAY_SHIFT - firstThursdayDay,
+    );
+
+    return Math.floor((currentDate.getTime() - firstThursday.getTime()) / MS_IN_DAY / DAYS_IN_WEEK) + 1;
 }
 
 export function weekOffset(date: Date, weekStart: WeekStart): number {

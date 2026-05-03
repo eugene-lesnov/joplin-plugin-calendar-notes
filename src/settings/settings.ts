@@ -2,12 +2,15 @@ import joplin from "api";
 import { SettingItemType } from "api/types";
 
 import {
+  DEFAULT_CALENDAR_NOTES_PATH,
+  DEFAULT_CALENDAR_NOTES_PATH_PATTERN,
   DEFAULT_FLOW_MODE_TITLE_FORMAT,
   DEFAULT_NOTE_MODE,
   DEFAULT_WEEK_START,
   DEFAULT_ZEN_MODE_TITLE_FORMAT,
   SETTINGS_SECTION,
   SETTING_CALENDAR_NOTES_PATH,
+  SETTING_CALENDAR_NOTES_PATH_PATTERN,
   SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
   SETTING_FLOW_MODE_TITLE_FORMAT,
   SETTING_NOTE_MODE,
@@ -49,6 +52,10 @@ function normalizeWeekStart(value: unknown): WeekStart {
 }
 
 function normalizeCalendarNotesPath(value: unknown): string {
+  return String(value ?? "").trim() || DEFAULT_CALENDAR_NOTES_PATH;
+}
+
+function normalizeCalendarNotesPathPattern(value: unknown): string {
   return String(value ?? "").trim();
 }
 
@@ -63,6 +70,7 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
     SETTING_FLOW_MODE_TITLE_FORMAT,
     SETTING_WEEK_START,
     SETTING_CALENDAR_NOTES_PATH,
+    SETTING_CALENDAR_NOTES_PATH_PATTERN,
     SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
   ]);
 
@@ -77,6 +85,9 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
     weekStart: normalizeWeekStart(values[SETTING_WEEK_START]),
     calendarNotesPath: normalizeCalendarNotesPath(
       values[SETTING_CALENDAR_NOTES_PATH],
+    ),
+    calendarNotesPathPattern: normalizeCalendarNotesPathPattern(
+      values[SETTING_CALENDAR_NOTES_PATH_PATTERN],
     ),
     calendarNoteTemplatePath: normalizeNoteTemplatePath(
       values[SETTING_CALENDAR_NOTE_TEMPLATE_PATH],
@@ -138,12 +149,21 @@ export async function registerSettings(): Promise<void> {
     },
 
     [SETTING_CALENDAR_NOTES_PATH]: {
-      value: "",
+      value: DEFAULT_CALENDAR_NOTES_PATH,
       type: SettingItemType.String,
       section: SETTINGS_SECTION,
       public: true,
       label: strings.calendarNotesPathLabel,
       description: strings.calendarNotesPathDescription,
+    },
+
+    [SETTING_CALENDAR_NOTES_PATH_PATTERN]: {
+      value: DEFAULT_CALENDAR_NOTES_PATH_PATTERN,
+      type: SettingItemType.String,
+      section: SETTINGS_SECTION,
+      public: true,
+      label: strings.calendarNotesPathPatternLabel,
+      description: strings.calendarNotesPathPatternDescription,
     },
 
     [SETTING_CALENDAR_NOTE_TEMPLATE_PATH]: {

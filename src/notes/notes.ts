@@ -9,13 +9,15 @@ import {
   formatDateByPattern,
   formatDateExpression,
   formatDateId,
+  isoWeekNumber,
   pad2,
   parseDateId,
+  quarterName,
   startOfLocalDayMs,
 } from "../core/dateUtils";
 import strings, { formatLocalizedString } from "../core/localization";
 import {
-  getFallbackFolderId,
+  ensureNotebookPath,
   resolveNotebookPath,
   splitNotebookPath,
 } from "./notebooks";
@@ -37,6 +39,7 @@ const REGEXP_SPECIAL_CHARS_PATTERN = /[.*+?^${}()|[\]\\]/g;
 const TITLE_DUPLICATE_SUFFIX_SEPARATOR = " ";
 const DUPLICATE_TITLE_SUFFIX_PATTERN = "(?: \\(\\d+\\))?";
 const DYNAMIC_TITLE_PART_PATTERN = ".+";
+const CALENDAR_PATH_PLACEHOLDER_PATTERN = /\{\{\s*(year|month|quarter|week)\s*\}\}/g;
 
 
 export function buildNoteTitle(
@@ -334,16 +337,48 @@ function renderFlowModeTitle(
   return title.trim() || zenModeTitle;
 }
 
+function renderCalendarNotesPathPattern(
+  dateId: string,
+  pattern: string,
+): string {
+  const date = parseDateId(dateId);
+  const month = date.month + 1;
+  const replacements: Record<string, string> = {
+    year: String(date.year),
+    month: pad2(month),
+    quarter: quarterName(date.month),
+    week: `W${pad2(isoWeekNumber(date))}`,
+  };
+
+  return pattern.replace(CALENDAR_PATH_PLACEHOLDER_PATTERN, (match, key: string) => {
+    return replacements[key] ?? match;
+  });
+}
+
+function buildCalendarNotesFolderPath(
+  dateId: string,
+  settings: CalendarSettings,
+): string {
+  const relativePath = renderCalendarNotesPathPattern(
+    dateId,
+    settings.calendarNotesPathPattern,
+  );
+
+  return splitNotebookPath([
+    settings.calendarNotesPath,
+    relativePath,
+  ].join("/")).join("/");
+}
+
 async function getCalendarNotesFolderIdForCreate(
+  dateId: string,
   settings: CalendarSettings,
 ): Promise<string | null> {
-  if (settings.calendarNotesPath) {
-    const notebook = await resolveNotebookPath(settings.calendarNotesPath);
+  const notebook = await ensureNotebookPath(
+    buildCalendarNotesFolderPath(dateId, settings),
+  );
 
-    return notebook?.id ?? null;
-  }
-
-  return getFallbackFolderId();
+  return notebook?.id ?? null;
 }
 
 async function findNoteByExactTitleAnywhere(
@@ -471,7 +506,7 @@ async function createCalendarNote(
   title: string,
   settings: CalendarSettings,
 ): Promise<NoteSummary | null> {
-  const parentId = await getCalendarNotesFolderIdForCreate(settings);
+  const parentId = await getCalendarNotesFolderIdForCreate(dateId, settings);
 
   if (!parentId) {
     await joplin.views.dialogs.showMessageBox(

@@ -45,6 +45,7 @@ export type CalendarSettings = {
   flowModeTitleFormat: string;
   weekStart: WeekStart;
   calendarNotesPath: string;
+  calendarNotesPathPattern: string;
   calendarNoteTemplatePath: string;
 };
 

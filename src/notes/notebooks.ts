@@ -94,6 +94,41 @@ export async function resolveNotebookPath(
   return current;
 }
 
+export async function ensureNotebookPath(
+  path: string,
+): Promise<FolderSummary | null> {
+  const segments = splitNotebookPath(path);
+
+  if (segments.length === 0) {
+    return null;
+  }
+
+  const folders = await getAllFolders();
+
+  let parentId = "";
+  let current: FolderSummary | null = null;
+
+  for (const segment of segments) {
+    const existing = findChildFolder(folders, parentId, segment);
+
+    if (existing) {
+      current = existing;
+      parentId = existing.id;
+      continue;
+    }
+
+    current = (await joplin.data.post(["folders"], null, {
+      title: segment,
+      parent_id: parentId || undefined,
+    })) as FolderSummary;
+
+    folders.push(current);
+    parentId = current.id;
+  }
+
+  return current;
+}
+
 
 export async function getFallbackFolderId(): Promise<string | null> {
   const selectedFolder = await joplin.workspace.selectedFolder();
