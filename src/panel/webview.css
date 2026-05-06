@@ -25,7 +25,6 @@
 
 .nav-button,
 .today-button,
-.refresh-button,
 .day {
     border: 1px solid var(--joplin-divider-color);
     background: var(--joplin-background-color);
@@ -47,24 +46,9 @@
     margin-bottom: 10px;
 }
 
-.today-button,
-.refresh-button {
-    padding: 6px 8px;
-}
-
 .today-button {
     flex: 1;
-}
-
-.refresh-button {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.refresh-icon {
-    display: block;
+    padding: 6px 8px;
 }
 
 .weekdays,
@@ -94,8 +78,7 @@
 
 .day:not(.day-empty):hover,
 .nav-button:hover,
-.today-button:hover,
-.refresh-button:hover {
+.today-button:hover {
     background: var(--joplin-selected-color);
 }
 

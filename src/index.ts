@@ -22,7 +22,6 @@ import {
   hasStaleVisibleCalendarNoteMarkers,
   hidePanel,
   isVisibleCalendarNote,
-  refreshCalendarNow,
   renderCalendar,
   scheduleCalendarRefresh,
   selectCalendarDate,
@@ -89,11 +88,6 @@ async function handlePanelMessage(message: CalendarMessage): Promise<void> {
 
   if (message.name === "today") {
     await goToToday();
-    return;
-  }
-
-  if (message.name === "refresh") {
-    await refreshCalendarNow();
   }
 }
 

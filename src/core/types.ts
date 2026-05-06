@@ -8,8 +8,7 @@ export type CalendarMessage =
   | { name: "createNote"; date: string }
   | { name: "prevMonth" }
   | { name: "nextMonth" }
-  | { name: "today" }
-  | { name: "refresh" };
+  | { name: "today" };
 
 export type NoteSummary = {
   id: string;

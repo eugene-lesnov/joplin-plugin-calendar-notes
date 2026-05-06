@@ -59,12 +59,5 @@ document.addEventListener("click", async (event) => {
     await webviewApi.postMessage({
       name: "today",
     });
-    return;
-  }
-
-  if (action === "refresh") {
-    await webviewApi.postMessage({
-      name: "refresh",
-    });
   }
 });

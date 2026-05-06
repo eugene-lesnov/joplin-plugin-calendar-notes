@@ -24,7 +24,6 @@ export interface AppLocalization {
   previousMonthTitle: string;
   nextMonthTitle: string;
   todayButtonLabel: string;
-  refreshCalendarTitle: string;
   selectedDayLabel: string;
   createNoteButtonLabel: string;
   noNotesForDayLabel: string;
@@ -66,7 +65,6 @@ const defaultStrings: AppLocalization = {
   previousMonthTitle: "Previous month",
   nextMonthTitle: "Next month",
   todayButtonLabel: "Today",
-  refreshCalendarTitle: "Refresh calendar note markers",
   selectedDayLabel: "Notes for {{date}}:",
   createNoteButtonLabel: "+ New note",
   noNotesForDayLabel: "No notes yet.",
@@ -109,7 +107,6 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     previousMonthTitle: "Предыдущий месяц",
     nextMonthTitle: "Следующий месяц",
     todayButtonLabel: "Сегодня",
-    refreshCalendarTitle: "Обновить отметки календарных заметок",
     selectedDayLabel: "Заметки за {{date}}:",
     createNoteButtonLabel: "+ Новая заметка",
     noNotesForDayLabel: "Заметок пока нет.",
