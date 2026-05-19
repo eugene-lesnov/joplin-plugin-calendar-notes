@@ -52,10 +52,6 @@ export async function setupPanel(
   await joplin.views.panels.onMessage(panelHandle, onMessage);
 }
 
-export async function hidePanel(): Promise<void> {
-  await joplin.views.panels.hide(panelHandle);
-}
-
 async function isPanelVisible(): Promise<boolean> {
   return joplin.views.panels.visible(panelHandle);
 }

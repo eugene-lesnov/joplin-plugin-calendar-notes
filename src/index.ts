@@ -20,7 +20,6 @@ import {
   goToPrevMonth,
   goToToday,
   hasStaleVisibleCalendarNoteMarkers,
-  hidePanel,
   isVisibleCalendarNote,
   renderCalendar,
   scheduleCalendarRefresh,
@@ -178,6 +177,5 @@ joplin.plugins.register({
     await registerCommands();
 
     await renderCalendar();
-    await hidePanel();
   },
 });
