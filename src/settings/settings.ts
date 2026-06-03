@@ -22,6 +22,7 @@ import {
   SETTING_CALENDAR_NOTES_PATH,
   SETTING_CALENDAR_NOTES_PATH_PATTERN,
   SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
+  SETTING_CALENDAR_TASK_TEMPLATE_PATH,
   SETTING_DAY_IDENTIFIER_FORMAT,
   SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_WEEK_START,
@@ -74,6 +75,7 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
     SETTING_CALENDAR_NOTES_PATH,
     SETTING_CALENDAR_NOTES_PATH_PATTERN,
     SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
+    SETTING_CALENDAR_TASK_TEMPLATE_PATH,
   ]);
 
   return {
@@ -92,6 +94,9 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
     ),
     calendarNoteTemplatePath: normalizeNoteTemplatePath(
       values[SETTING_CALENDAR_NOTE_TEMPLATE_PATH],
+    ),
+    calendarTaskTemplatePath: normalizeNoteTemplatePath(
+      values[SETTING_CALENDAR_TASK_TEMPLATE_PATH],
     ),
   };
 }
@@ -175,6 +180,15 @@ export async function registerSettings(): Promise<void> {
       public: true,
       label: strings.noteTemplateLabel,
       description: strings.noteTemplateDescription,
+    },
+
+    [SETTING_CALENDAR_TASK_TEMPLATE_PATH]: {
+      value: "",
+      type: SettingItemType.String,
+      section: SETTINGS_SECTION,
+      public: true,
+      label: strings.taskTemplateLabel,
+      description: strings.taskTemplateDescription,
     },
   });
 }

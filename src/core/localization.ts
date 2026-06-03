@@ -21,17 +21,24 @@ export interface AppLocalization {
   calendarNotesPathPatternDescription: string;
   noteTemplateLabel: string;
   noteTemplateDescription: string;
+  taskTemplateLabel: string;
+  taskTemplateDescription: string;
   toggleCalendarCommandLabel: string;
   loadingCalendar: string;
   createDateNoteTitle: string;
   previousMonthTitle: string;
   nextMonthTitle: string;
   todayButtonLabel: string;
-  selectedDayLabel: string;
+  selectedTasksLabel: string;
+  selectedNotesLabel: string;
+  createTaskButtonLabel: string;
   createNoteButtonLabel: string;
+  noTasksForDayLabel: string;
   noNotesForDayLabel: string;
+  newTaskDefaultTitle: string;
   createCalendarNoteNoNotebookError: string;
   createCalendarNoteTemplateReadError: string;
+  createCalendarTaskTemplateReadError: string;
 }
 
 const PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
@@ -64,19 +71,28 @@ const defaultStrings: AppLocalization = {
   noteTemplateLabel: "New note template",
   noteTemplateDescription:
     "Joplin note to use as the text template for new notes. Example: Templates/Calendar note. Available: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
+  taskTemplateLabel: "New task template",
+  taskTemplateDescription:
+    "Joplin note to use as the text template for new tasks. Example: Templates/Calendar task. Available: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
   toggleCalendarCommandLabel: "Toggle Calendar",
   loadingCalendar: "Loading calendar...",
   createDateNoteTitle: "Select notes for \"{{title}}\"",
   previousMonthTitle: "Previous month",
   nextMonthTitle: "Next month",
   todayButtonLabel: "Today",
-  selectedDayLabel: "Notes for {{date}}:",
+  selectedTasksLabel: "Tasks for {{date}}:",
+  selectedNotesLabel: "Notes for {{date}}:",
+  createTaskButtonLabel: "+ New task",
   createNoteButtonLabel: "+ New note",
+  noTasksForDayLabel: "No tasks yet.",
   noNotesForDayLabel: "No notes yet.",
+  newTaskDefaultTitle: "New task",
   createCalendarNoteNoNotebookError:
     "Cannot create a calendar note: no notebook was found.",
   createCalendarNoteTemplateReadError:
     "Cannot create a calendar note: failed to find or read template note {{path}}.",
+  createCalendarTaskTemplateReadError:
+    "Cannot create a calendar task: failed to find or read template note {{path}}.",
 };
 
 const localizations: Record<string, Partial<AppLocalization>> = {
@@ -108,18 +124,27 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     noteTemplateLabel: "Шаблон новой заметки",
     noteTemplateDescription:
       "Заметка Joplin, из которой брать текст для новых заметок. Пример: Шаблоны/Календарная заметка. Доступно: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
+    taskTemplateLabel: "Шаблон новой задачи",
+    taskTemplateDescription:
+      "Заметка Joplin, из которой брать текст для новых задач. Пример: Шаблоны/Календарная задача. Доступно: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
     toggleCalendarCommandLabel: "Показать или скрыть календарь",
     loadingCalendar: "Загрузка календаря...",
     createDateNoteTitle: "Показать заметки за \"{{title}}\"",
     previousMonthTitle: "Предыдущий месяц",
     nextMonthTitle: "Следующий месяц",
     todayButtonLabel: "Сегодня",
-    selectedDayLabel: "Заметки за {{date}}:",
+    selectedTasksLabel: "Задачи за {{date}}:",
+    selectedNotesLabel: "Заметки за {{date}}:",
+    createTaskButtonLabel: "+ Новая задача",
     createNoteButtonLabel: "+ Новая заметка",
+    noTasksForDayLabel: "Задач пока нет.",
     noNotesForDayLabel: "Заметок пока нет.",
+    newTaskDefaultTitle: "Новая задача",
     createCalendarNoteNoNotebookError: "Не удалось создать календарную заметку: блокнот не найден.",
     createCalendarNoteTemplateReadError:
       "Не удалось создать календарную заметку: не получилось найти или прочитать заметку-шаблон {{path}}",
+    createCalendarTaskTemplateReadError:
+      "Не удалось создать календарную задачу: не получилось найти или прочитать заметку-шаблон {{path}}",
   },
 };
 

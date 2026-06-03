@@ -5,11 +5,12 @@ A Joplin plugin that adds a calendar panel for daily notes.
 ## Features
 
 - Calendar panel toggled from the toolbar or **Tools → Toggle Calendar**.
-- Days with existing notes are highlighted.
-- Click a day to select it; a section below the calendar lists that day's notes and provides a `+ New note` button.
+- Days with existing notes or tasks are highlighted.
+- Click a day to select it; sections below the calendar list that day's tasks and notes.
+- Create Joplin todo tasks for a selected day, complete them from the calendar panel, and see task reminders.
 - Simple presets for date format and new note titles.
 - Automatic notebook structure for new calendar notes using a notebook path and an optional nested structure.
-- Optional template note with placeholders (`{{title}}`, `{{date}}`, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
+- Optional note and task templates with placeholders (`{{title}}`, `{{date}}`, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
 - Week starts on Monday or Sunday.
 - English and Russian UI.
 
@@ -32,11 +33,12 @@ Joplin **3.5** or newer.
 | Week starts on | Monday or Sunday |
 | Calendar notes notebook | Notebook path for new notes, e.g. `Calendar Notes`; missing notebooks are created automatically |
 | Nested notebook structure | Optional path inside the calendar notes notebook, e.g. `{{year}}/{{month}}` |
-| New note template | Joplin note used as a body template, e.g. `Templates/Calendar note` |
+| New note template | Joplin note used as a body template for new notes, e.g. `Templates/Calendar note` |
+| New task template | Joplin note used as a body template for new todo tasks, e.g. `Templates/Calendar task` |
 
 ## How notes are matched
 
-Notes are matched only inside the configured calendar notes notebook and its nested notebooks. A note belongs to a day when its title starts with the selected date format, so renamed notes like `25.01.2026 meeting` remain visible for that day. New notes are created in the configured calendar notes notebook. If a nested structure is set, missing nested notebooks are created automatically.
+Notes and Joplin todo tasks are matched only inside the configured calendar notes notebook and its nested notebooks. An item belongs to a day when its title starts with the selected date format, so renamed items like `25.01.2026 meeting` remain visible for that day. New notes and tasks are created in the configured calendar notes notebook. If a nested structure is set, missing nested notebooks are created automatically.
 
 ## License
 

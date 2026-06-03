@@ -135,6 +135,12 @@
     border-top: 1px solid var(--joplin-divider-color);
     display: flex;
     flex-direction: column;
+    gap: 12px;
+}
+
+.day-section {
+    display: flex;
+    flex-direction: column;
     gap: 6px;
 }
 
@@ -161,22 +167,74 @@
     padding: 4px 0;
 }
 
+.day-task {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.task-title,
 .day-note {
-    width: 100%;
-    text-align: left;
-    padding: 6px 8px;
     border: 1px solid var(--joplin-divider-color);
     border-radius: 6px;
     background: var(--joplin-background-color);
     color: var(--joplin-color);
     cursor: pointer;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     font-family: inherit;
     font-size: inherit;
 }
 
+.task-checkbox {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin: 0 4px;
+    accent-color: var(--joplin-color);
+    cursor: pointer;
+}
+
+.task-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left;
+    padding: 6px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-alarm {
+    flex: 0 0 auto;
+    font-size: 11px;
+    opacity: 0.75;
+    white-space: nowrap;
+}
+
+.task-alarm.overdue {
+    color: var(--joplin-color-warn, #d97706);
+    font-weight: 600;
+    opacity: 1;
+}
+
+.day-task.completed .task-alarm {
+    opacity: 0.45;
+}
+
+.day-task.completed .task-title {
+    opacity: 0.65;
+    text-decoration: line-through;
+}
+
+.day-note {
+    width: 100%;
+    text-align: left;
+    padding: 6px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-title:hover,
 .day-note:hover {
     background: var(--joplin-selected-color);
 }

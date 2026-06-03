@@ -33,6 +33,23 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  if (action === "createTask") {
+    await webviewApi.postMessage({
+      name: "createTask",
+      date: target.dataset.date,
+    });
+    return;
+  }
+
+  if (action === "toggleTask") {
+    await webviewApi.postMessage({
+      name: "toggleTask",
+      id: target.dataset.noteId,
+      completed: target.dataset.completed === "true",
+    });
+    return;
+  }
+
   if (action === "prevMonth") {
     await webviewApi.postMessage({
       name: "prevMonth",

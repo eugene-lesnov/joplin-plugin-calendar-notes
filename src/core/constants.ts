@@ -10,6 +10,7 @@ export const SETTING_WEEK_START = "weekStart";
 export const SETTING_CALENDAR_NOTES_PATH = "calendarNotesPath";
 export const SETTING_CALENDAR_NOTES_PATH_PATTERN = "calendarNotesPathPattern";
 export const SETTING_CALENDAR_NOTE_TEMPLATE_PATH = "calendarNoteTemplatePath";
+export const SETTING_CALENDAR_TASK_TEMPLATE_PATH = "calendarTaskTemplatePath";
 
 export const DAY_IDENTIFIER_FORMAT_DOTS = "{{dd.mm.YYYY}}";
 export const DAY_IDENTIFIER_FORMAT_ISO = "{{YYYY-MM-dd}}";

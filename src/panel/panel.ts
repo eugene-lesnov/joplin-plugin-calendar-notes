@@ -5,6 +5,7 @@ import {
   daysInMonth,
   escapeHtml,
   formatDateId,
+  pad2,
   weekOffset,
   weekdayLabels,
 } from "../core/dateUtils";
@@ -28,12 +29,14 @@ const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
 const NOTE_CHANGE_DELETE_EVENT = 3;
 const SELECT_DATE_ACTION = "selectDate";
 
+
 let panelHandle: string;
 let currentYear: number;
 let currentMonth: number;
 let visibleCalendarNoteIds = new Set<string>();
 let visibleCalendarNoteDatesById = new Map<string, string>();
 let visibleNotesByDate: Map<string, NoteSummary[]> = new Map();
+let visibleTasksByDate: Map<string, NoteSummary[]> = new Map();
 let selectedDateId: string | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -128,12 +131,118 @@ function buildDayButtonTitle(dayIdentifier: string): string {
   });
 }
 
-function renderSelectedDaySectionHtml(
+function isTaskCompleted(task: NoteSummary): boolean {
+  return Boolean(task.todo_completed && task.todo_completed > 0);
+}
+
+function stripDayIdentifierFromTitle(
+  title: string,
+  dateId: string,
+  settings: CalendarSettings,
+): string {
+  const dayIdentifier = buildDayIdentifier(dateId, settings);
+  const stripped = title
+    .slice(dayIdentifier.length)
+    .replace(/^\s*[-–—:]\s*/, "")
+    .trim();
+
+  return stripped || title;
+}
+
+function isSameLocalDay(first: Date, second: Date): boolean {
+  return first.getFullYear() === second.getFullYear()
+    && first.getMonth() === second.getMonth()
+    && first.getDate() === second.getDate();
+}
+
+function formatTaskAlarm(alarmTime: number): string {
+  const alarmDate = new Date(alarmTime);
+  const now = new Date();
+  const time = `${pad2(alarmDate.getHours())}:${pad2(alarmDate.getMinutes())}`;
+
+  if (isSameLocalDay(alarmDate, now)) {
+    return time;
+  }
+
+  const date = `${pad2(alarmDate.getDate())}.${pad2(alarmDate.getMonth() + 1)}`;
+
+  if (alarmDate.getFullYear() === now.getFullYear()) {
+    return `${date} ${time}`;
+  }
+
+  return `${date}.${alarmDate.getFullYear()} ${time}`;
+}
+
+function renderTaskAlarmHtml(task: NoteSummary, completed: boolean): string {
+  if (!task.todo_due || task.todo_due <= 0) {
+    return "";
+  }
+
+  const overdue = !completed && task.todo_due < Date.now();
+  const classes = ["task-alarm", overdue ? "overdue" : ""]
+    .filter(Boolean)
+    .join(" ");
+  const label = formatTaskAlarm(task.todo_due);
+
+  return `<span class="${classes}" title="${escapeHtml(label)}">🔔 ${escapeHtml(label)}</span>`;
+}
+
+function renderTasksSectionHtml(
+  dateId: string,
+  tasks: readonly NoteSummary[],
+  settings: CalendarSettings,
+): string {
+  const heading = formatLocalizedString(strings.selectedTasksLabel, {
+    date: buildDayIdentifier(dateId, settings),
+  });
+
+  const items = tasks.length === 0
+    ? `<div class="selected-day-empty">${escapeHtml(strings.noTasksForDayLabel)}</div>`
+    : `<ul class="selected-day-list">${tasks
+        .map((task) => {
+          const completed = isTaskCompleted(task);
+          const title = stripDayIdentifierFromTitle(task.title, dateId, settings);
+
+          const alarmHtml = renderTaskAlarmHtml(task, completed);
+
+          return `<li class="day-task ${completed ? "completed" : ""}">
+            <input
+              class="task-checkbox"
+              type="checkbox"
+              data-action="toggleTask"
+              data-note-id="${escapeHtml(task.id)}"
+              data-completed="${completed ? "true" : "false"}"
+              title="${escapeHtml(task.title)}"
+              ${completed ? "checked" : ""}
+            />
+            <button
+              class="task-title"
+              data-action="openNote"
+              data-note-id="${escapeHtml(task.id)}"
+              title="${escapeHtml(task.title)}"
+            >${escapeHtml(title)}</button>
+            ${alarmHtml}
+          </li>`;
+        })
+        .join("")}</ul>`;
+
+  return `
+    <section class="day-section day-tasks">
+      <div class="selected-day-header">${escapeHtml(heading)}</div>
+      ${items}
+      <button class="create-note-button" data-action="createTask" data-date="${escapeHtml(dateId)}">
+        ${escapeHtml(strings.createTaskButtonLabel)}
+      </button>
+    </section>
+  `;
+}
+
+function renderNotesSectionHtml(
   dateId: string,
   notes: readonly NoteSummary[],
   settings: CalendarSettings,
 ): string {
-  const heading = formatLocalizedString(strings.selectedDayLabel, {
+  const heading = formatLocalizedString(strings.selectedNotesLabel, {
     date: buildDayIdentifier(dateId, settings),
   });
 
@@ -151,12 +260,40 @@ function renderSelectedDaySectionHtml(
         .join("")}</ul>`;
 
   return `
-    <div class="selected-day">
+    <section class="day-section day-notes">
       <div class="selected-day-header">${escapeHtml(heading)}</div>
       ${items}
       <button class="create-note-button" data-action="createNote" data-date="${escapeHtml(dateId)}">
         ${escapeHtml(strings.createNoteButtonLabel)}
       </button>
+    </section>
+  `;
+}
+
+function buildVisibleItemCountsByDate(): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const [date, notes] of visibleNotesByDate) {
+    counts.set(date, notes.length);
+  }
+
+  for (const [date, tasks] of visibleTasksByDate) {
+    counts.set(date, (counts.get(date) ?? 0) + tasks.length);
+  }
+
+  return counts;
+}
+
+function renderSelectedDaySectionHtml(
+  dateId: string,
+  tasks: readonly NoteSummary[],
+  notes: readonly NoteSummary[],
+  settings: CalendarSettings,
+): string {
+  return `
+    <div class="selected-day">
+      ${renderTasksSectionHtml(dateId, tasks, settings)}
+      ${renderNotesSectionHtml(dateId, notes, settings)}
     </div>
   `;
 }
@@ -166,6 +303,7 @@ function renderCalendarHtml(
   month: number,
   noteCountsByDate: Map<string, number>,
   notesByDate: Map<string, NoteSummary[]>,
+  tasksByDate: Map<string, NoteSummary[]>,
   settings: CalendarSettings,
 ): string {
   const todayId = getTodayDateId();
@@ -244,6 +382,7 @@ function renderCalendarHtml(
               selectedDateId
                 ? renderSelectedDaySectionHtml(
                     selectedDateId,
+                    tasksByDate.get(selectedDateId) ?? [],
                     notesByDate.get(selectedDateId) ?? [],
                     settings,
                   )
@@ -264,12 +403,14 @@ export async function renderCalendar(): Promise<void> {
   visibleCalendarNoteIds = new Set(existingMarkers.datesByNoteId.keys());
   visibleCalendarNoteDatesById = new Map(existingMarkers.datesByNoteId);
   visibleNotesByDate = existingMarkers.notesByDate;
+  visibleTasksByDate = existingMarkers.tasksByDate;
 
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
     existingMarkers.noteCountsByDate,
     existingMarkers.notesByDate,
+    existingMarkers.tasksByDate,
     settings,
   );
 
@@ -410,10 +551,9 @@ export async function selectCalendarDate(dateId: string): Promise<void> {
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
-    new Map(
-      [...visibleNotesByDate.entries()].map(([date, notes]) => [date, notes.length]),
-    ),
+    buildVisibleItemCountsByDate(),
     visibleNotesByDate,
+    visibleTasksByDate,
     settings,
   );
 

@@ -5,12 +5,17 @@ import {
   SETTING_CALENDAR_NOTES_PATH,
   SETTING_CALENDAR_NOTES_PATH_PATTERN,
   SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
+  SETTING_CALENDAR_TASK_TEMPLATE_PATH,
   SETTING_DAY_IDENTIFIER_FORMAT,
   SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_WEEK_START,
 } from "./core/constants";
 import strings, { getLocales, setLocale } from "./core/localization";
-import { createCalendarNoteForDate } from "./notes/notes";
+import {
+  createCalendarNoteForDate,
+  createCalendarTaskForDate,
+  setCalendarTaskCompleted,
+} from "./notes/notes";
 import {
   goToNextMonth,
   goToPrevMonth,
@@ -45,6 +50,7 @@ const RENDER_AFFECTING_SETTINGS = [
   SETTING_CALENDAR_NOTES_PATH,
   SETTING_CALENDAR_NOTES_PATH_PATTERN,
   SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
+  SETTING_CALENDAR_TASK_TEMPLATE_PATH,
 ];
 
 async function handlePanelMessage(message: CalendarMessage): Promise<void> {
@@ -60,6 +66,18 @@ async function handlePanelMessage(message: CalendarMessage): Promise<void> {
 
   if (message.name === "createNote") {
     await createCalendarNoteForDate(message.date);
+    await renderCalendar();
+    return;
+  }
+
+  if (message.name === "createTask") {
+    await createCalendarTaskForDate(message.date);
+    await renderCalendar();
+    return;
+  }
+
+  if (message.name === "toggleTask") {
+    await setCalendarTaskCompleted(message.id, !message.completed);
     await renderCalendar();
     return;
   }

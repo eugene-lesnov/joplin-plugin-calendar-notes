@@ -4,6 +4,8 @@ export type CalendarMessage =
   | { name: "selectDate"; date: string }
   | { name: "openNote"; id: string }
   | { name: "createNote"; date: string }
+  | { name: "createTask"; date: string }
+  | { name: "toggleTask"; id: string; completed: boolean }
   | { name: "prevMonth" }
   | { name: "nextMonth" }
   | { name: "today" };
@@ -13,12 +15,16 @@ export type NoteSummary = {
   title: string;
   parent_id?: string;
   deleted_time?: number;
+  is_todo?: number;
+  todo_completed?: number;
+  todo_due?: number;
 };
 
 export type ExistingCalendarNoteMarkers = {
   datesByNoteId: Map<string, string>;
   noteCountsByDate: Map<string, number>;
   notesByDate: Map<string, NoteSummary[]>;
+  tasksByDate: Map<string, NoteSummary[]>;
 };
 
 export type NoteChangeEvent = {
@@ -43,6 +49,7 @@ export type CalendarSettings = {
   calendarNotesPath: string;
   calendarNotesPathPattern: string;
   calendarNoteTemplatePath: string;
+  calendarTaskTemplatePath: string;
 };
 
 export type CalendarDate = {
