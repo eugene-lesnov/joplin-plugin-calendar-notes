@@ -9,14 +9,6 @@ document.addEventListener("click", async (event) => {
 
   const action = target.dataset.action;
 
-  if (action === "openDate") {
-    await webviewApi.postMessage({
-      name: "openDate",
-      date: target.dataset.date,
-    });
-    return;
-  }
-
   if (action === "selectDate") {
     await webviewApi.postMessage({
       name: "selectDate",

@@ -2,19 +2,13 @@
 
 A Joplin plugin that adds a calendar panel for daily notes.
 
-## Modes
-
-- **Zen** — one note per day. Click a day -> open or create the day's note.
-- **Flow** — multiple notes per day. Click a day -> select it; a section below the calendar lists that day's notes (click to open) and provides a `+ New note` button.
-
-Switch modes in **Tools → Options → Calendar Notes**.
-
 ## Features
 
 - Calendar panel toggled from the toolbar or **Tools → Toggle Calendar**.
 - Days with existing notes are highlighted.
-- Configurable note title formats (Zen and Flow).
-- Automatic notebook structure for new calendar notes using a root path and an optional date-based path pattern.
+- Click a day to select it; a section below the calendar lists that day's notes and provides a `+ New note` button.
+- Simple presets for date format and new note titles.
+- Automatic notebook structure for new calendar notes using a notebook path and an optional nested structure.
 - Optional template note with placeholders (`{{title}}`, `{{date}}`, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
 - Week starts on Monday or Sunday.
 - English and Russian UI.
@@ -31,21 +25,18 @@ Joplin **3.5** or newer.
 
 ## Settings
 
-| Setting | Purpose                                                                                       |
-| --- |-----------------------------------------------------------------------------------------------|
-| Mode | Zen (one note/day) or Flow (multiple notes/day)                                               |
-| Zen mode title format | Title for the day's note, e.g. `{{YYYY-MM-dd}}`                                               |
-| Flow mode title format | Title for each Flow note; must contain `{{zenModeTitle}}`, e.g. `{{zenModeTitle}} - {{time}}` |
-| Week starts on | Monday or Sunday                                                                              |
-| Calendar notes root notebook path | Root notebook path for new notes, e.g. `Calendar Notes`; missing notebooks are created automatically |
-| Calendar notes path pattern | Optional relative path under the root, e.g. `{{year}}/{{month}}`; leave empty to create notes directly in the root notebook |
-| New calendar note template path | Joplin note used as a body template, e.g. `Templates/Calendar note`                           |
-
-Each setting includes inline help in Joplin with the full list of supported tokens.
+| Setting | Purpose |
+| --- | --- |
+| Date format | How the date is written in calendar note titles, e.g. `25.01.2026`, `2026-01-25`, `01/25/2026` |
+| New note title | Title preset for notes created by the plugin: date and time, or date with automatic numbering |
+| Week starts on | Monday or Sunday |
+| Calendar notes notebook | Notebook path for new notes, e.g. `Calendar Notes`; missing notebooks are created automatically |
+| Nested notebook structure | Optional path inside the calendar notes notebook, e.g. `{{year}}/{{month}}` |
+| New note template | Joplin note used as a body template, e.g. `Templates/Calendar note` |
 
 ## How notes are matched
 
-Notes are matched globally by title using the configured format. New notes are created under the configured root notebook path. If a path pattern is set, missing nested notebooks are created automatically.
+Notes are matched only inside the configured calendar notes notebook and its nested notebooks. A note belongs to a day when its title starts with the selected date format, so renamed notes like `25.01.2026 meeting` remain visible for that day. New notes are created in the configured calendar notes notebook. If a nested structure is set, missing nested notebooks are created automatically.
 
 ## License
 

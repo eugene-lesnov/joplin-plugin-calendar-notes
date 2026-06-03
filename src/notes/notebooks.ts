@@ -37,6 +37,21 @@ async function getAllFolders(): Promise<FolderSummary[]> {
   return result;
 }
 
+function collectDescendantFolderIds(
+  folders: FolderSummary[],
+  parentId: string,
+  result: Set<string>,
+): void {
+  for (const folder of folders) {
+    if (normalizeParentId(folder.parent_id) !== parentId) {
+      continue;
+    }
+
+    result.add(folder.id);
+    collectDescendantFolderIds(folders, folder.id, result);
+  }
+}
+
 function findChildFolder(
   folders: FolderSummary[],
   parentId: string,
@@ -94,6 +109,21 @@ export async function resolveNotebookPath(
   return current;
 }
 
+export async function getNotebookTreeIds(path: string): Promise<Set<string>> {
+  const rootFolder = await resolveNotebookPath(path);
+
+  if (!rootFolder) {
+    return new Set();
+  }
+
+  const folders = await getAllFolders();
+  const ids = new Set<string>([rootFolder.id]);
+
+  collectDescendantFolderIds(folders, rootFolder.id, ids);
+
+  return ids;
+}
+
 export async function ensureNotebookPath(
   path: string,
 ): Promise<FolderSummary | null> {
@@ -129,18 +159,3 @@ export async function ensureNotebookPath(
   return current;
 }
 
-
-export async function getFallbackFolderId(): Promise<string | null> {
-  const selectedFolder = await joplin.workspace.selectedFolder();
-
-  if (selectedFolder?.id) {
-    return selectedFolder.id;
-  }
-
-  const folders = await joplin.data.get(["folders"], {
-    fields: ["id", "title"],
-    limit: 1,
-  });
-
-  return folders.items?.[0]?.id ?? null;
-}

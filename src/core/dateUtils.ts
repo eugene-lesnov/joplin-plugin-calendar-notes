@@ -1,4 +1,4 @@
-import { DEFAULT_ZEN_MODE_TITLE_FORMAT } from "./constants";
+import { DEFAULT_DAY_IDENTIFIER_FORMAT } from "./constants";
 import { getLocales } from "./localization";
 import type { CalendarDate, WeekStart } from "./types";
 
@@ -104,14 +104,14 @@ export function formatDateByPattern(
     pattern: string,
 ): string {
     const source = pattern.trim();
-    const normalizedPattern = source || DEFAULT_ZEN_MODE_TITLE_FORMAT;
+    const normalizedPattern = source || DEFAULT_DAY_IDENTIFIER_FORMAT;
     const normalized = renderDatePattern(date, normalizedPattern).trim();
 
     if (normalized) {
         return normalized;
     }
 
-    return renderDatePattern(date, DEFAULT_ZEN_MODE_TITLE_FORMAT).trim();
+    return renderDatePattern(date, DEFAULT_DAY_IDENTIFIER_FORMAT).trim();
 }
 
 export function startOfLocalDayMs(dateId: string): number {

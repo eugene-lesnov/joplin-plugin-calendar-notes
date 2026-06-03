@@ -2,49 +2,52 @@ import joplin from "api";
 import { SettingItemType } from "api/types";
 
 import {
+  DAY_IDENTIFIER_FORMAT_COMPACT,
+  DAY_IDENTIFIER_FORMAT_DASHES_EU,
+  DAY_IDENTIFIER_FORMAT_DASHES_US,
+  DAY_IDENTIFIER_FORMAT_DOTS,
+  DAY_IDENTIFIER_FORMAT_ISO,
+  DAY_IDENTIFIER_FORMAT_SLASHES,
+  DAY_IDENTIFIER_FORMAT_US,
+  DAY_IDENTIFIER_FORMATS,
   DEFAULT_CALENDAR_NOTES_PATH,
   DEFAULT_CALENDAR_NOTES_PATH_PATTERN,
-  DEFAULT_FLOW_MODE_TITLE_FORMAT,
-  DEFAULT_NOTE_MODE,
+  DEFAULT_DAY_IDENTIFIER_FORMAT,
+  DEFAULT_NEW_NOTE_TITLE_FORMAT,
   DEFAULT_WEEK_START,
-  DEFAULT_ZEN_MODE_TITLE_FORMAT,
+  NEW_NOTE_TITLE_FORMAT_DATE_AND_TIME,
+  NEW_NOTE_TITLE_FORMAT_DATE_ONLY,
+  NEW_NOTE_TITLE_FORMATS,
   SETTINGS_SECTION,
   SETTING_CALENDAR_NOTES_PATH,
   SETTING_CALENDAR_NOTES_PATH_PATTERN,
   SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
-  SETTING_FLOW_MODE_TITLE_FORMAT,
-  SETTING_NOTE_MODE,
+  SETTING_DAY_IDENTIFIER_FORMAT,
+  SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_WEEK_START,
-  SETTING_ZEN_MODE_TITLE_FORMAT,
 } from "../core/constants";
 import { weekdayLongName } from "../core/dateUtils";
 import strings from "../core/localization";
-import type { CalendarNoteMode, CalendarSettings, WeekStart } from "../core/types";
+import type { CalendarSettings, WeekStart } from "../core/types";
 
-const ZEN_MODE_TITLE_PLACEHOLDER_PATTERN = /\{\{\s*zenModeTitle\s*\}\}/;
-
-function normalizeNoteMode(value: unknown): CalendarNoteMode {
-  return value === "flow" ? "flow" : DEFAULT_NOTE_MODE;
-}
-
-function normalizeZenModeTitleFormat(value: unknown): string {
+function normalizeDayIdentifierFormat(value: unknown): string {
   const format = String(value ?? "").trim();
 
-  if (!format) {
-    return DEFAULT_ZEN_MODE_TITLE_FORMAT;
+  if (DAY_IDENTIFIER_FORMATS.includes(format)) {
+    return format;
   }
 
-  return format;
+  return DEFAULT_DAY_IDENTIFIER_FORMAT;
 }
 
-function normalizeFlowModeTitleFormat(value: unknown): string {
+function normalizeNewNoteTitleFormat(value: unknown): string {
   const format = String(value ?? "").trim();
 
-  if (!format || !ZEN_MODE_TITLE_PLACEHOLDER_PATTERN.test(format)) {
-    return DEFAULT_FLOW_MODE_TITLE_FORMAT;
+  if (NEW_NOTE_TITLE_FORMATS.includes(format)) {
+    return format;
   }
 
-  return format;
+  return DEFAULT_NEW_NOTE_TITLE_FORMAT;
 }
 
 function normalizeWeekStart(value: unknown): WeekStart {
@@ -65,9 +68,8 @@ function normalizeNoteTemplatePath(value: unknown): string {
 
 export async function getCalendarSettings(): Promise<CalendarSettings> {
   const values = await joplin.settings.values([
-    SETTING_NOTE_MODE,
-    SETTING_ZEN_MODE_TITLE_FORMAT,
-    SETTING_FLOW_MODE_TITLE_FORMAT,
+    SETTING_DAY_IDENTIFIER_FORMAT,
+    SETTING_NEW_NOTE_TITLE_FORMAT,
     SETTING_WEEK_START,
     SETTING_CALENDAR_NOTES_PATH,
     SETTING_CALENDAR_NOTES_PATH_PATTERN,
@@ -75,12 +77,11 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
   ]);
 
   return {
-    noteMode: normalizeNoteMode(values[SETTING_NOTE_MODE]),
-    zenModeTitleFormat: normalizeZenModeTitleFormat(
-      values[SETTING_ZEN_MODE_TITLE_FORMAT],
+    dayIdentifierFormat: normalizeDayIdentifierFormat(
+      values[SETTING_DAY_IDENTIFIER_FORMAT],
     ),
-    flowModeTitleFormat: normalizeFlowModeTitleFormat(
-      values[SETTING_FLOW_MODE_TITLE_FORMAT],
+    newNoteTitleFormat: normalizeNewNoteTitleFormat(
+      values[SETTING_NEW_NOTE_TITLE_FORMAT],
     ),
     weekStart: normalizeWeekStart(values[SETTING_WEEK_START]),
     calendarNotesPath: normalizeCalendarNotesPath(
@@ -102,36 +103,37 @@ export async function registerSettings(): Promise<void> {
   });
 
   await joplin.settings.registerSettings({
-    [SETTING_NOTE_MODE]: {
-      value: DEFAULT_NOTE_MODE,
+    [SETTING_DAY_IDENTIFIER_FORMAT]: {
+      value: DEFAULT_DAY_IDENTIFIER_FORMAT,
       type: SettingItemType.String,
       section: SETTINGS_SECTION,
       public: true,
-      label: strings.noteModeLabel,
-      description: strings.noteModeDescription,
+      label: strings.dayIdentifierFormatLabel,
+      description: strings.dayIdentifierFormatDescription,
       isEnum: true,
       options: {
-        zen: strings.zenModeLabel,
-        flow: strings.flowModeLabel,
+        [DAY_IDENTIFIER_FORMAT_DOTS]: strings.dayIdentifierFormatDotsLabel,
+        [DAY_IDENTIFIER_FORMAT_ISO]: strings.dayIdentifierFormatIsoLabel,
+        [DAY_IDENTIFIER_FORMAT_SLASHES]: strings.dayIdentifierFormatSlashesLabel,
+        [DAY_IDENTIFIER_FORMAT_US]: strings.dayIdentifierFormatUsLabel,
+        [DAY_IDENTIFIER_FORMAT_COMPACT]: strings.dayIdentifierFormatCompactLabel,
+        [DAY_IDENTIFIER_FORMAT_DASHES_EU]: strings.dayIdentifierFormatDashesEuLabel,
+        [DAY_IDENTIFIER_FORMAT_DASHES_US]: strings.dayIdentifierFormatDashesUsLabel,
       },
     },
 
-    [SETTING_ZEN_MODE_TITLE_FORMAT]: {
-      value: DEFAULT_ZEN_MODE_TITLE_FORMAT,
+    [SETTING_NEW_NOTE_TITLE_FORMAT]: {
+      value: DEFAULT_NEW_NOTE_TITLE_FORMAT,
       type: SettingItemType.String,
       section: SETTINGS_SECTION,
       public: true,
-      label: strings.zenModeTitleFormatLabel,
-      description: strings.zenModeTitleFormatDescription,
-    },
-
-    [SETTING_FLOW_MODE_TITLE_FORMAT]: {
-      value: DEFAULT_FLOW_MODE_TITLE_FORMAT,
-      type: SettingItemType.String,
-      section: SETTINGS_SECTION,
-      public: true,
-      label: strings.flowModeTitleFormatLabel,
-      description: strings.flowModeTitleFormatDescription,
+      label: strings.newNoteTitleFormatLabel,
+      description: strings.newNoteTitleFormatDescription,
+      isEnum: true,
+      options: {
+        [NEW_NOTE_TITLE_FORMAT_DATE_AND_TIME]: strings.newNoteTitleFormatDateAndTimeLabel,
+        [NEW_NOTE_TITLE_FORMAT_DATE_ONLY]: strings.newNoteTitleFormatDateOnlyLabel,
+      },
     },
 
     [SETTING_WEEK_START]: {

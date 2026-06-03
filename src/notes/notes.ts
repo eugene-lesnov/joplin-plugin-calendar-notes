@@ -1,7 +1,7 @@
 import joplin from "api";
 
 import {
-  DEFAULT_FLOW_MODE_TITLE_FORMAT,
+  DEFAULT_NEW_NOTE_TITLE_FORMAT,
   PLUGIN_ID,
 } from "../core/constants";
 import {
@@ -18,6 +18,7 @@ import {
 import strings, { formatLocalizedString } from "../core/localization";
 import {
   ensureNotebookPath,
+  getNotebookTreeIds,
   resolveNotebookPath,
   splitNotebookPath,
 } from "./notebooks";
@@ -31,102 +32,40 @@ import type {
 const NOTE_PAGE_LIMIT = 100;
 export const NOTE_FIELDS = ["id", "title", "parent_id", "deleted_time"];
 
-const ZEN_MODE_TITLE_PLACEHOLDER_PATTERN = /\{\{\s*zenModeTitle\s*\}\}/g;
+const DAY_IDENTIFIER_PLACEHOLDER_REPLACEMENT_PATTERN = /\{\{\s*dayIdentifier\s*\}\}/g;
 const DATE_PLACEHOLDER_PATTERN = /\{\{\s*date:([^}]+)\s*\}\}/g;
 const TEXT_PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z]+)\s*\}\}/g;
-const TEMPLATE_PLACEHOLDER_PATTERN = /\{\{\s*([^{}]+?)\s*\}\}/g;
-const REGEXP_SPECIAL_CHARS_PATTERN = /[.*+?^${}()|[\]\\]/g;
 const TITLE_DUPLICATE_SUFFIX_SEPARATOR = " ";
-const DUPLICATE_TITLE_SUFFIX_PATTERN = "(?: \\(\\d+\\))?";
-const DYNAMIC_TITLE_PART_PATTERN = ".+";
 const CALENDAR_PATH_PLACEHOLDER_PATTERN = /\{\{\s*(year|month|quarter|week)\s*\}\}/g;
 
-
-export function buildNoteTitle(
+export function buildDayIdentifier(
   dateId: string,
   settings: CalendarSettings,
 ): string {
   const date = parseDateId(dateId);
-  return formatDateByPattern(date, settings.zenModeTitleFormat);
+  return formatDateByPattern(date, settings.dayIdentifierFormat);
 }
 
 export function isDeletedNote(note: NoteSummary): boolean {
   return Boolean(note.deleted_time && note.deleted_time > 0);
 }
 
-function buildExpectedCalendarNoteTitles(
+function buildExpectedCalendarDayIdentifiers(
   year: number,
   month: number,
   settings: CalendarSettings,
 ): Map<string, string> {
-  const expectedTitles = new Map<string, string>();
+  const expectedIdentifiers = new Map<string, string>();
   const count = daysInMonth(year, month);
 
   for (let day = 1; day <= count; day++) {
     const dateId = formatDateId(year, month, day);
-    const title = buildNoteTitle(dateId, settings);
+    const identifier = buildDayIdentifier(dateId, settings);
 
-    expectedTitles.set(title, dateId);
+    expectedIdentifiers.set(identifier, dateId);
   }
 
-  return expectedTitles;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(REGEXP_SPECIAL_CHARS_PATTERN, "\\$&");
-}
-
-function renderTemplatePattern(
-  format: string,
-  renderPlaceholder: (placeholder: string) => string,
-): string {
-  let pattern = "";
-  let index = 0;
-  let match: RegExpExecArray | null;
-
-  TEMPLATE_PLACEHOLDER_PATTERN.lastIndex = 0;
-
-  while ((match = TEMPLATE_PLACEHOLDER_PATTERN.exec(format)) !== null) {
-    pattern += escapeRegExp(format.slice(index, match.index));
-    pattern += renderPlaceholder(match[1].trim());
-    index = match.index + match[0].length;
-  }
-
-  TEMPLATE_PLACEHOLDER_PATTERN.lastIndex = 0;
-  pattern += escapeRegExp(format.slice(index));
-
-  return pattern;
-}
-
-function buildFlowModeTitlePattern(
-  dateId: string,
-  settings: CalendarSettings,
-): RegExp {
-  const format = settings.flowModeTitleFormat || DEFAULT_FLOW_MODE_TITLE_FORMAT;
-  const date = parseDateId(dateId);
-  const zenModeTitle = buildNoteTitle(dateId, settings);
-  const exactReplacements: Record<string, string> = {
-    title: zenModeTitle,
-    noteTitle: zenModeTitle,
-    zenModeTitle,
-    ...getDateReplacements(dateId),
-  };
-
-  const bodyPattern = renderTemplatePattern(format, (placeholder) => {
-    if (placeholder.startsWith("date:")) {
-      return escapeRegExp(formatDateExpression(date, placeholder.slice(5).trim()));
-    }
-
-    const replacement = exactReplacements[placeholder];
-
-    if (replacement !== undefined) {
-      return escapeRegExp(replacement);
-    }
-
-    return DYNAMIC_TITLE_PART_PATTERN;
-  });
-
-  return new RegExp(`^${bodyPattern}${DUPLICATE_TITLE_SUFFIX_PATTERN}$`);
+  return expectedIdentifiers;
 }
 
 export function isCalendarNoteTitleForDate(
@@ -134,16 +73,9 @@ export function isCalendarNoteTitleForDate(
   dateId: string,
   settings: CalendarSettings,
 ): boolean {
-  const zenModeTitle = buildNoteTitle(dateId, settings);
+  const dayIdentifier = buildDayIdentifier(dateId, settings);
 
-  if (title === zenModeTitle) {
-    return true;
-  }
-
-  return settings.noteMode === "flow" && buildFlowModeTitlePattern(
-    dateId,
-    settings,
-  ).test(title);
+  return title.startsWith(dayIdentifier);
 }
 
 export function resolveCalendarNoteDateId(
@@ -152,14 +84,9 @@ export function resolveCalendarNoteDateId(
   month: number,
   settings: CalendarSettings,
 ): string | null {
-  const expectedTitles = buildExpectedCalendarNoteTitles(year, month, settings);
-
-  if (settings.noteMode === "zen") {
-    return expectedTitles.get(title) ?? null;
-  }
-
-  const candidates = [...expectedTitles.entries()].sort(
-    ([firstTitle], [secondTitle]) => secondTitle.length - firstTitle.length,
+  const expectedIdentifiers = buildExpectedCalendarDayIdentifiers(year, month, settings);
+  const candidates = [...expectedIdentifiers.entries()].sort(
+    ([firstIdentifier], [secondIdentifier]) => secondIdentifier.length - firstIdentifier.length,
   );
 
   for (const [, dateId] of candidates) {
@@ -179,6 +106,35 @@ async function findNoteByExactTitleInFolder(
 
   while (true) {
     const response = await joplin.data.get(["folders", folderId, "notes"], {
+      fields: NOTE_FIELDS,
+      limit: NOTE_PAGE_LIMIT,
+      page,
+    });
+
+    const items = response.items as NoteSummary[];
+    const found = items.find(
+      (note) => note.title === title && !isDeletedNote(note),
+    );
+
+    if (found) {
+      return found;
+    }
+
+    if (!response.has_more) {
+      return null;
+    }
+
+    page += 1;
+  }
+}
+
+async function findNoteByExactTitleAnywhere(
+  title: string,
+): Promise<NoteSummary | null> {
+  let page = 1;
+
+  while (true) {
+    const response = await joplin.data.get(["notes"], {
       fields: NOTE_FIELDS,
       limit: NOTE_PAGE_LIMIT,
       page,
@@ -277,6 +233,7 @@ export function renderNoteTemplate(
   rawTemplate: string,
   dateId: string,
   title: string,
+  createdAt = new Date(),
 ): string {
   if (!rawTemplate.trim()) {
     return "";
@@ -293,6 +250,7 @@ export function renderNoteTemplate(
   const replacements: Record<string, string> = {
     title,
     noteTitle: title,
+    time: formatTime(createdAt),
     ...getDateReplacements(dateId),
   };
 
@@ -303,30 +261,30 @@ export function renderNoteTemplate(
   return body;
 }
 
-function formatTimeForTitle(date: Date): string {
+function formatTime(date: Date): string {
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
-function renderFlowModeTitle(
+function renderNoteTitle(
   dateId: string,
   settings: CalendarSettings,
   createdAt = new Date(),
 ): string {
-  const format = settings.flowModeTitleFormat || DEFAULT_FLOW_MODE_TITLE_FORMAT;
+  const format = settings.newNoteTitleFormat || DEFAULT_NEW_NOTE_TITLE_FORMAT;
   const date = parseDateId(dateId);
-  const zenModeTitle = buildNoteTitle(dateId, settings);
+  const dayIdentifier = buildDayIdentifier(dateId, settings);
 
-  let title = format.replace(ZEN_MODE_TITLE_PLACEHOLDER_PATTERN, zenModeTitle);
+  let title = format.replace(DAY_IDENTIFIER_PLACEHOLDER_REPLACEMENT_PATTERN, dayIdentifier);
 
   title = title.replace(DATE_PLACEHOLDER_PATTERN, (_, pattern: string) => {
     return formatDateExpression(date, pattern.trim());
   });
 
   const replacements: Record<string, string> = {
-    title: zenModeTitle,
-    noteTitle: zenModeTitle,
-    zenModeTitle,
-    time: formatTimeForTitle(createdAt),
+    title: dayIdentifier,
+    noteTitle: dayIdentifier,
+    dayIdentifier,
+    time: formatTime(createdAt),
     ...getDateReplacements(dateId),
   };
 
@@ -334,7 +292,7 @@ function renderFlowModeTitle(
     return replacements[key] ?? match;
   });
 
-  return title.trim() || zenModeTitle;
+  return title.trim() || dayIdentifier;
 }
 
 function renderCalendarNotesPathPattern(
@@ -381,36 +339,26 @@ async function getCalendarNotesFolderIdForCreate(
   return notebook?.id ?? null;
 }
 
-async function findNoteByExactTitleAnywhere(
+async function findNoteByExactTitleInFolders(
+  folderIds: ReadonlySet<string>,
   title: string,
 ): Promise<NoteSummary | null> {
-  let page = 1;
-
-  while (true) {
-    const response = await joplin.data.get(["notes"], {
-      fields: NOTE_FIELDS,
-      limit: NOTE_PAGE_LIMIT,
-      page,
-    });
-
-    const items = response.items as NoteSummary[];
-
-    const found = items.find(
-      (note) => note.title === title && !isDeletedNote(note),
-    );
+  for (const folderId of folderIds) {
+    const found = await findNoteByExactTitleInFolder(folderId, title);
 
     if (found) {
       return found;
     }
-
-    if (!response.has_more) {
-      return null;
-    }
-
-    page += 1;
   }
+
+  return null;
 }
 
+async function getCalendarNotebookTreeIds(
+  settings: CalendarSettings,
+): Promise<Set<string>> {
+  return getNotebookTreeIds(settings.calendarNotesPath);
+}
 
 function appendNoteForDate(
   notesByDate: Map<string, NoteSummary[]>,
@@ -435,40 +383,44 @@ export async function getExistingCalendarNoteMarkers(
   const datesByNoteId = new Map<string, string>();
   const notesByDate = new Map<string, NoteSummary[]>();
 
-  let page = 1;
+  const folderIds = await getCalendarNotebookTreeIds(settings);
 
-  while (true) {
-    const response = await joplin.data.get(["notes"], {
-      fields: NOTE_FIELDS,
-      limit: NOTE_PAGE_LIMIT,
-      page,
-    });
+  for (const folderId of folderIds) {
+    let page = 1;
 
-    const items = response.items as NoteSummary[];
+    while (true) {
+      const response = await joplin.data.get(["folders", folderId, "notes"], {
+        fields: NOTE_FIELDS,
+        limit: NOTE_PAGE_LIMIT,
+        page,
+      });
 
-    for (const note of items) {
-      if (isDeletedNote(note)) {
-        continue;
+      const items = response.items as NoteSummary[];
+
+      for (const note of items) {
+        if (isDeletedNote(note)) {
+          continue;
+        }
+
+        const dateId = resolveCalendarNoteDateId(
+          note.title,
+          year,
+          month,
+          settings,
+        );
+
+        if (dateId) {
+          datesByNoteId.set(note.id, dateId);
+          appendNoteForDate(notesByDate, dateId, note);
+        }
       }
 
-      const dateId = resolveCalendarNoteDateId(
-        note.title,
-        year,
-        month,
-        settings,
-      );
-
-      if (dateId) {
-        datesByNoteId.set(note.id, dateId);
-        appendNoteForDate(notesByDate, dateId, note);
+      if (!response.has_more) {
+        break;
       }
-    }
 
-    if (!response.has_more) {
-      break;
+      page += 1;
     }
-
-    page += 1;
   }
 
   for (const notes of notesByDate.values()) {
@@ -483,8 +435,11 @@ export async function getExistingCalendarNoteMarkers(
   return { datesByNoteId, noteCountsByDate, notesByDate };
 }
 
-async function makeUniqueNoteTitle(baseTitle: string): Promise<string> {
-  if (!(await findNoteByExactTitleAnywhere(baseTitle))) {
+async function makeUniqueNoteTitle(
+  baseTitle: string,
+  folderIds: ReadonlySet<string>,
+): Promise<string> {
+  if (!(await findNoteByExactTitleInFolders(folderIds, baseTitle))) {
     return baseTitle;
   }
 
@@ -493,7 +448,7 @@ async function makeUniqueNoteTitle(baseTitle: string): Promise<string> {
   while (true) {
     const title = `${baseTitle}${TITLE_DUPLICATE_SUFFIX_SEPARATOR}(${index})`;
 
-    if (!(await findNoteByExactTitleAnywhere(title))) {
+    if (!(await findNoteByExactTitleInFolders(folderIds, title))) {
       return title;
     }
 
@@ -505,6 +460,7 @@ async function createCalendarNote(
   dateId: string,
   title: string,
   settings: CalendarSettings,
+  createdAt: Date,
 ): Promise<NoteSummary | null> {
   const parentId = await getCalendarNotesFolderIdForCreate(dateId, settings);
 
@@ -529,7 +485,7 @@ async function createCalendarNote(
     return null;
   }
 
-  const body = renderNoteTemplate(rawTemplate, dateId, title);
+  const body = renderNoteTemplate(rawTemplate, dateId, title, createdAt);
   const dayStart = startOfLocalDayMs(dateId);
 
   return joplin.data.post(["notes"], null, {
@@ -542,47 +498,19 @@ async function createCalendarNote(
   }) as Promise<NoteSummary>;
 }
 
-
-async function openOrCreateZenModeCalendarNote(
-  dateId: string,
-  settings: CalendarSettings,
-): Promise<void> {
-  const title = buildNoteTitle(dateId, settings);
-  const existing = await findNoteByExactTitleAnywhere(title);
-
-  if (existing) {
-    await joplin.commands.execute("openNote", existing.id);
-    return;
-  }
-
-  const created = await createCalendarNote(dateId, title, settings);
-
-  if (created) {
-    await joplin.commands.execute("openNote", created.id);
-  }
-}
-
-export async function createFlowModeCalendarNote(
+export async function createCalendarNoteForDate(
   dateId: string,
   settings?: CalendarSettings,
 ): Promise<void> {
   const effectiveSettings = settings ?? (await getCalendarSettings());
-  const baseTitle = renderFlowModeTitle(dateId, effectiveSettings);
-  const title = await makeUniqueNoteTitle(baseTitle);
-  const created = await createCalendarNote(dateId, title, effectiveSettings);
+
+  const createdAt = new Date();
+  const baseTitle = renderNoteTitle(dateId, effectiveSettings, createdAt);
+  const calendarFolderIds = await getCalendarNotebookTreeIds(effectiveSettings);
+  const title = await makeUniqueNoteTitle(baseTitle, calendarFolderIds);
+  const created = await createCalendarNote(dateId, title, effectiveSettings, createdAt);
 
   if (created) {
     await joplin.commands.execute("openNote", created.id);
   }
-}
-
-export async function openOrCreateCalendarNote(dateId: string): Promise<void> {
-  const settings = await getCalendarSettings();
-
-  if (settings.noteMode === "flow") {
-    await createFlowModeCalendarNote(dateId, settings);
-    return;
-  }
-
-  await openOrCreateZenModeCalendarNote(dateId, settings);
 }

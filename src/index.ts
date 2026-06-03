@@ -5,16 +5,12 @@ import {
   SETTING_CALENDAR_NOTES_PATH,
   SETTING_CALENDAR_NOTES_PATH_PATTERN,
   SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
-  SETTING_FLOW_MODE_TITLE_FORMAT,
-  SETTING_NOTE_MODE,
+  SETTING_DAY_IDENTIFIER_FORMAT,
+  SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_WEEK_START,
-  SETTING_ZEN_MODE_TITLE_FORMAT,
 } from "./core/constants";
 import strings, { getLocales, setLocale } from "./core/localization";
-import {
-  createFlowModeCalendarNote,
-  openOrCreateCalendarNote,
-} from "./notes/notes";
+import { createCalendarNoteForDate } from "./notes/notes";
 import {
   goToNextMonth,
   goToPrevMonth,
@@ -43,9 +39,8 @@ const JOPLIN_LOCALE_SETTING_KEY = "locale";
 let previousSelectedNoteIds: string[] = [];
 
 const RENDER_AFFECTING_SETTINGS = [
-  SETTING_NOTE_MODE,
-  SETTING_ZEN_MODE_TITLE_FORMAT,
-  SETTING_FLOW_MODE_TITLE_FORMAT,
+  SETTING_DAY_IDENTIFIER_FORMAT,
+  SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_WEEK_START,
   SETTING_CALENDAR_NOTES_PATH,
   SETTING_CALENDAR_NOTES_PATH_PATTERN,
@@ -53,12 +48,6 @@ const RENDER_AFFECTING_SETTINGS = [
 ];
 
 async function handlePanelMessage(message: CalendarMessage): Promise<void> {
-  if (message.name === "openDate") {
-    await openOrCreateCalendarNote(message.date);
-    await renderCalendar();
-    return;
-  }
-
   if (message.name === "selectDate") {
     await selectCalendarDate(message.date);
     return;
@@ -70,7 +59,7 @@ async function handlePanelMessage(message: CalendarMessage): Promise<void> {
   }
 
   if (message.name === "createNote") {
-    await createFlowModeCalendarNote(message.date);
+    await createCalendarNoteForDate(message.date);
     await renderCalendar();
     return;
   }

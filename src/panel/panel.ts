@@ -11,7 +11,7 @@ import {
 import strings, { formatLocalizedString, getLocales } from "../core/localization";
 import {
   NOTE_FIELDS,
-  buildNoteTitle,
+  buildDayIdentifier,
   getExistingCalendarNoteMarkers,
   isCalendarNoteTitleForDate,
   isDeletedNote,
@@ -26,10 +26,11 @@ import type {
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
 const NOTE_CHANGE_DELETE_EVENT = 3;
+const SELECT_DATE_ACTION = "selectDate";
 
 let panelHandle: string;
 let currentYear: number;
-let currentMonth: number; // январь = 0
+let currentMonth: number;
 let visibleCalendarNoteIds = new Set<string>();
 let visibleCalendarNoteDatesById = new Map<string, string>();
 let visibleNotesByDate: Map<string, NoteSummary[]> = new Map();
@@ -42,6 +43,7 @@ export async function setupPanel(
   const now = new Date();
   currentYear = now.getFullYear();
   currentMonth = now.getMonth();
+  selectedDateId = getTodayDateId();
 
   panelHandle = await joplin.views.panels.create(PANEL_ID);
 
@@ -102,33 +104,28 @@ function formatMonthLabel(year: number, month: number): string {
   }
 }
 
+function getTodayDateId(): string {
+  const today = new Date();
+
+  return formatDateId(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+}
+
 function renderDayMarkerHtml(noteCount: number): string {
   if (noteCount <= 0) {
     return "";
   }
 
-  // Точка показывается одинаково в обоих режимах: в режиме «Поток» список
-  // заметок дня и так отображается под календарём, поэтому счётчик на иконке
-  // дня не нужен.
   return '<span class="dot"></span>';
 }
 
-function buildDayButtonTitle(
-  noteTitle: string,
-  noteCount: number,
-  settings: CalendarSettings,
-): string {
-  if (settings.noteMode === "flow") {
-    return formatLocalizedString(strings.createDateNoteTitle, {
-      title: noteTitle,
-      count: noteCount,
-    });
-  }
-
-  return formatLocalizedString(
-    noteCount > 0 ? strings.openNoteTitle : strings.createNoteTitle,
-    { title: noteTitle },
-  );
+function buildDayButtonTitle(dayIdentifier: string): string {
+  return formatLocalizedString(strings.createDateNoteTitle, {
+    title: dayIdentifier,
+  });
 }
 
 function renderSelectedDaySectionHtml(
@@ -137,7 +134,7 @@ function renderSelectedDaySectionHtml(
   settings: CalendarSettings,
 ): string {
   const heading = formatLocalizedString(strings.selectedDayLabel, {
-    date: buildNoteTitle(dateId, settings),
+    date: buildDayIdentifier(dateId, settings),
   });
 
   const items = notes.length === 0
@@ -171,14 +168,7 @@ function renderCalendarHtml(
   notesByDate: Map<string, NoteSummary[]>,
   settings: CalendarSettings,
 ): string {
-  const today = new Date();
-
-  const todayId = formatDateId(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-
+  const todayId = getTodayDateId();
   const monthLabel = formatMonthLabel(year, month);
 
   const firstDayOffset = weekOffset(
@@ -197,15 +187,13 @@ function renderCalendarHtml(
     cells.push('<div class="day day-empty"></div>');
   }
 
-  const dayAction = settings.noteMode === "flow" ? "selectDate" : "openDate";
-
   for (let day = 1; day <= totalDays; day++) {
     const dateId = formatDateId(year, month, day);
-    const noteTitle = buildNoteTitle(dateId, settings);
+    const dayIdentifier = buildDayIdentifier(dateId, settings);
     const noteCount = noteCountsByDate.get(dateId) ?? 0;
     const hasNote = noteCount > 0;
     const isToday = dateId === todayId;
-    const isSelected = settings.noteMode === "flow" && dateId === selectedDateId;
+    const isSelected = dateId === selectedDateId;
 
     const classes = [
       "day",
@@ -216,13 +204,13 @@ function renderCalendarHtml(
       .filter(Boolean)
       .join(" ");
 
-    const title = buildDayButtonTitle(noteTitle, noteCount, settings);
+    const title = buildDayButtonTitle(dayIdentifier);
     const markerHtml = renderDayMarkerHtml(noteCount);
 
     cells.push(`
 			<button
 				class="${classes}"
-				data-action="${dayAction}"
+				data-action="${SELECT_DATE_ACTION}"
 				data-date="${escapeHtml(dateId)}"
 				title="${escapeHtml(title)}"
 			>
@@ -253,7 +241,7 @@ function renderCalendarHtml(
 			</div>
 
 			${
-              settings.noteMode === "flow" && selectedDateId
+              selectedDateId
                 ? renderSelectedDaySectionHtml(
                     selectedDateId,
                     notesByDate.get(selectedDateId) ?? [],
@@ -276,10 +264,6 @@ export async function renderCalendar(): Promise<void> {
   visibleCalendarNoteIds = new Set(existingMarkers.datesByNoteId.keys());
   visibleCalendarNoteDatesById = new Map(existingMarkers.datesByNoteId);
   visibleNotesByDate = existingMarkers.notesByDate;
-
-  if (settings.noteMode !== "flow") {
-    selectedDateId = null;
-  }
 
   const html = renderCalendarHtml(
     currentYear,
@@ -363,6 +347,10 @@ export async function shouldRefreshCalendarForNoteChange(
 }
 
 export async function showCalendarPanel(): Promise<void> {
+  if (!selectedDateId) {
+    selectedDateId = getTodayDateId();
+  }
+
   await renderCalendar();
   await joplin.views.panels.show(panelHandle, true);
 }
@@ -383,7 +371,7 @@ export async function goToToday(): Promise<void> {
 
   currentYear = today.getFullYear();
   currentMonth = today.getMonth();
-  selectedDateId = null;
+  selectedDateId = getTodayDateId();
 
   await renderCalendar();
 }
@@ -416,10 +404,6 @@ export async function goToNextMonth(): Promise<void> {
 
 export async function selectCalendarDate(dateId: string): Promise<void> {
   const settings = await getCalendarSettings();
-
-  if (settings.noteMode !== "flow") {
-    return;
-  }
 
   selectedDateId = dateId === selectedDateId ? null : dateId;
 

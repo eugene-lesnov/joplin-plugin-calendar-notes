@@ -1,13 +1,18 @@
 export interface AppLocalization {
   settingsSectionLabel: string;
-  noteModeLabel: string;
-  noteModeDescription: string;
-  zenModeLabel: string;
-  flowModeLabel: string;
-  zenModeTitleFormatLabel: string;
-  zenModeTitleFormatDescription: string;
-  flowModeTitleFormatLabel: string;
-  flowModeTitleFormatDescription: string;
+  dayIdentifierFormatLabel: string;
+  dayIdentifierFormatDescription: string;
+  dayIdentifierFormatDotsLabel: string;
+  dayIdentifierFormatIsoLabel: string;
+  dayIdentifierFormatSlashesLabel: string;
+  dayIdentifierFormatUsLabel: string;
+  dayIdentifierFormatCompactLabel: string;
+  dayIdentifierFormatDashesEuLabel: string;
+  dayIdentifierFormatDashesUsLabel: string;
+  newNoteTitleFormatLabel: string;
+  newNoteTitleFormatDescription: string;
+  newNoteTitleFormatDateAndTimeLabel: string;
+  newNoteTitleFormatDateOnlyLabel: string;
   weekStartLabel: string;
   weekStartDescription: string;
   calendarNotesPathLabel: string;
@@ -18,8 +23,6 @@ export interface AppLocalization {
   noteTemplateDescription: string;
   toggleCalendarCommandLabel: string;
   loadingCalendar: string;
-  openNoteTitle: string;
-  createNoteTitle: string;
   createDateNoteTitle: string;
   previousMonthTitle: string;
   nextMonthTitle: string;
@@ -35,33 +38,35 @@ const PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
 
 const defaultStrings: AppLocalization = {
   settingsSectionLabel: "Calendar Notes",
-  noteModeLabel: "Mode",
-  noteModeDescription:
-    "Choose how a calendar day is represented: as a single note (Zen mode) or as a stream of notes (Flow mode).",
-  zenModeLabel: "Zen mode: one note per day",
-  flowModeLabel: "Flow mode: multiple notes per day",
-  zenModeTitleFormatLabel: "Zen mode: note title format",
-  zenModeTitleFormatDescription:
-    "Format used in Zen mode for the single note of a day. The same value is also substituted as {{zenModeTitle}} in the Flow mode title format, so it must uniquely identify the day. Put date expressions in {{...}}; plain text outside the braces is kept as-is. Supported tokens inside {{...}}: YYYY/yyyy, YY, MM/mm, M/m, dd/DD, d/D. Example: Calendar {{dd.mm.YYYY}}.",
-  flowModeTitleFormatLabel: "Flow mode: note title format",
-  flowModeTitleFormatDescription:
-    "Format used in Flow mode for each note of a day. Must contain {{zenModeTitle}} — it expands to the title produced by the Zen mode format, allowing the plugin to reliably match notes to a day. Supported placeholders: {{zenModeTitle}}, {{date}}, {{time}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}. Default: {{zenModeTitle}} - {{time}}.",
+  dayIdentifierFormatLabel: "Date format",
+  dayIdentifierFormatDescription:
+    "Date format in note titles. The plugin uses this date to understand which day a note belongs to.",
+  dayIdentifierFormatDotsLabel: "25.01.2026",
+  dayIdentifierFormatIsoLabel: "2026-01-25",
+  dayIdentifierFormatSlashesLabel: "25/01/2026",
+  dayIdentifierFormatUsLabel: "01/25/2026",
+  dayIdentifierFormatCompactLabel: "20260125",
+  dayIdentifierFormatDashesEuLabel: "25-01-2026",
+  dayIdentifierFormatDashesUsLabel: "01-25-2026",
+  newNoteTitleFormatLabel: "New note title",
+  newNoteTitleFormatDescription:
+    "How notes created from the calendar will be named.",
+  newNoteTitleFormatDateAndTimeLabel: "Date and time, e.g. 25.01.2026 - 14:30",
+  newNoteTitleFormatDateOnlyLabel: "Date with automatic numbering, e.g. 25.01.2026, 25.01.2026 (2)",
   weekStartLabel: "Week starts on",
-  weekStartDescription: "Controls the first day of week in the calendar panel.",
-  calendarNotesPathLabel: "Calendar notes root notebook path",
+  weekStartDescription: "First day of week in the calendar.",
+  calendarNotesPathLabel: "Calendar notes notebook",
   calendarNotesPathDescription:
-    "Root notebook path for new calendar notes. Default: Calendar Notes. The plugin creates missing notebooks automatically. Existing calendar notes are searched globally by title in all notebooks.",
-  calendarNotesPathPatternLabel: "Calendar notes path pattern",
+    "Where new calendar notes are created. If the notebook does not exist, it will be created.",
+  calendarNotesPathPatternLabel: "Nested notebook structure",
   calendarNotesPathPatternDescription:
-    "Relative notebook path under the root notebook. Supported placeholders: {{year}}, {{month}}, {{quarter}}, {{week}}. Leave empty to create new notes directly in the root notebook without nested notebooks.",
-  noteTemplateLabel: "New calendar note template path",
+    "Optional nested notebooks inside the main notebook. Example: {{year}}/{{month}}. Leave empty to create notes directly in the main notebook.",
+  noteTemplateLabel: "New note template",
   noteTemplateDescription:
-    "Joplin note path used as a template for new calendar notes. Example: Templates/Calendar note. If empty, the note body is empty. The template note body supports placeholders: {{title}}, {{date}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}.",
+    "Joplin note to use as the text template for new notes. Example: Templates/Calendar note. Available: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
   toggleCalendarCommandLabel: "Toggle Calendar",
   loadingCalendar: "Loading calendar...",
-  openNoteTitle: "Open note \"{{title}}\"",
-  createNoteTitle: "Create note \"{{title}}\"",
-  createDateNoteTitle: "Create a new note for \"{{title}}\"",
+  createDateNoteTitle: "Select notes for \"{{title}}\"",
   previousMonthTitle: "Previous month",
   nextMonthTitle: "Next month",
   todayButtonLabel: "Today",
@@ -77,33 +82,35 @@ const defaultStrings: AppLocalization = {
 const localizations: Record<string, Partial<AppLocalization>> = {
   ru: {
     settingsSectionLabel: "Calendar Notes",
-    noteModeLabel: "Режим",
-    noteModeDescription:
-      "Определяет, как отображается календарный день: как одна заметка (Дзен) или как поток заметок (Поток).",
-    zenModeLabel: "Дзен: одна заметка на день",
-    flowModeLabel: "Поток: несколько заметок на день",
-    zenModeTitleFormatLabel: "Дзен: формат заголовка заметки",
-    zenModeTitleFormatDescription:
-      "Формат заголовка для режима Дзен — единственной заметки дня. Тот же заголовок подставляется как {{zenModeTitle}} в формате режима Поток, поэтому он должен однозначно соответствовать дню. Выражения даты пишите в {{...}}, обычный текст вне скобок остаётся как есть. Поддерживаемые токены внутри {{...}}: YYYY/yyyy, YY, MM/mm, M/m, dd/DD, d/D. Пример: Календарь {{dd.mm.YYYY}}.",
-    flowModeTitleFormatLabel: "Поток: формат заголовка заметки",
-    flowModeTitleFormatDescription:
-      "Формат заголовка для режима Поток — каждой заметки дня. Должен содержать {{zenModeTitle}} — он подставляет заголовок, полученный по формату режима Дзен, чтобы плагин мог связывать заметки с конкретным днём. Поддерживаемые подстановки: {{zenModeTitle}}, {{date}}, {{time}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}.",
+    dayIdentifierFormatLabel: "Формат даты",
+    dayIdentifierFormatDescription:
+      "Формат даты в названии заметки. Плагин использует эту дату, чтобы понять, к какому дню относится заметка.",
+    dayIdentifierFormatDotsLabel: "25.01.2026",
+    dayIdentifierFormatIsoLabel: "2026-01-25",
+    dayIdentifierFormatSlashesLabel: "25/01/2026",
+    dayIdentifierFormatUsLabel: "01/25/2026",
+    dayIdentifierFormatCompactLabel: "20260125",
+    dayIdentifierFormatDashesEuLabel: "25-01-2026",
+    dayIdentifierFormatDashesUsLabel: "01-25-2026",
+    newNoteTitleFormatLabel: "Название новой заметки",
+    newNoteTitleFormatDescription:
+      "Как будут называться заметки, созданные из календаря.",
+    newNoteTitleFormatDateAndTimeLabel: "Дата и время, например 25.01.2026 - 14:30",
+    newNoteTitleFormatDateOnlyLabel: "Дата с автонумерацией, например 25.01.2026, 25.01.2026 (2)",
     weekStartLabel: "Первый день недели",
-    weekStartDescription: "Определяет, с какого дня начинается неделя в календаре.",
-    calendarNotesPathLabel: "Корневой путь к блокноту с календарными заметками",
+    weekStartDescription: "Первый день недели в календаре.",
+    calendarNotesPathLabel: "Блокнот для календарных заметок",
     calendarNotesPathDescription:
-      "Корневой путь для новых календарных заметок. По умолчанию: Calendar Notes. Плагин автоматически создает отсутствующие блокноты. Уже существующие календарные заметки ищутся по заголовку во всех блокнотах.",
-    calendarNotesPathPatternLabel: "Шаблон пути календарных заметок",
+      "Куда создавать новые календарные заметки. Если блокнота нет, он будет создан.",
+    calendarNotesPathPatternLabel: "Структура вложенных блокнотов",
     calendarNotesPathPatternDescription:
-      "Относительный путь к блокноту внутри корневого пути. Поддерживаемые подстановки: {{year}}, {{month}}, {{quarter}}, {{week}}. Если оставить поле пустым, новые заметки будут создаваться в корневом блокноте без вложенных блокнотов.",
-    noteTemplateLabel: "Путь к заметке-шаблону новой календарной заметки",
+      "Необязательные вложенные блокноты внутри основного блокнота. Пример: {{year}}/{{month}}. Оставьте пустым, чтобы создавать заметки прямо в основном блокноте.",
+    noteTemplateLabel: "Шаблон новой заметки",
     noteTemplateDescription:
-      "Путь к заметке Joplin, которая используется как шаблон для новых календарных заметок. Пример: Шаблоны/Календарная заметка. Если поле пустое, заметка будет создана без текста. Тело заметки-шаблона поддерживает подстановки: {{title}}, {{date}}, {{YYYY}}, {{YY}}, {{MM}}, {{M}}, {{dd}}, {{d}}, {{date:dd.mm.YYYY}}.",
+      "Заметка Joplin, из которой брать текст для новых заметок. Пример: Шаблоны/Календарная заметка. Доступно: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
     toggleCalendarCommandLabel: "Показать или скрыть календарь",
     loadingCalendar: "Загрузка календаря...",
-    openNoteTitle: "Открыть заметку \"{{title}}\"",
-    createNoteTitle: "Создать заметку \"{{title}}\"",
-    createDateNoteTitle: "Создать новую заметку за \"{{title}}\"",
+    createDateNoteTitle: "Показать заметки за \"{{title}}\"",
     previousMonthTitle: "Предыдущий месяц",
     nextMonthTitle: "Следующий месяц",
     todayButtonLabel: "Сегодня",
@@ -144,8 +151,6 @@ const getSupportedLanguages = (locales: readonly string[]): string[] => {
   const languages: string[] = [];
 
   for (const locale of locales) {
-    // Локали Joplin могут использовать формат ro_RO, а navigator.languages - ro-RO.
-    // Нормализуем к формату, совместимому с Intl.
     const normalizedLocale = normalizeLocale(locale);
     languages.push(normalizedLocale);
 
