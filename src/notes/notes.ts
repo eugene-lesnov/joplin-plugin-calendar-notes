@@ -25,6 +25,7 @@ import {
 import { getCalendarSettings } from "../settings/settings";
 import type {
   CalendarSettings,
+  CalendarTaskWithDate,
   ExistingCalendarNoteMarkers,
   NoteSummary,
 } from "../core/types";
@@ -100,6 +101,25 @@ export function resolveCalendarNoteDateId(
   for (const [, dateId] of candidates) {
     if (isCalendarNoteTitleForDate(title, dateId, settings)) {
       return dateId;
+    }
+  }
+
+  return null;
+}
+
+function resolveCalendarNoteDateIdInRange(
+  title: string,
+  startYear: number,
+  endYear: number,
+  settings: CalendarSettings,
+): string | null {
+  for (let year = startYear; year <= endYear; year++) {
+    for (let month = 0; month < 12; month++) {
+      const dateId = resolveCalendarNoteDateId(title, year, month, settings);
+
+      if (dateId) {
+        return dateId;
+      }
     }
   }
 
@@ -410,6 +430,10 @@ export async function getExistingCalendarNoteMarkers(
   const datesByNoteId = new Map<string, string>();
   const notesByDate = new Map<string, NoteSummary[]>();
   const tasksByDate = new Map<string, NoteSummary[]>();
+  const overdueTasks: CalendarTaskWithDate[] = [];
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const todayId = formatDateId(currentYear, today.getMonth(), today.getDate());
 
   const folderIds = await getCalendarNotebookTreeIds(settings);
 
@@ -436,6 +460,9 @@ export async function getExistingCalendarNoteMarkers(
           month,
           settings,
         );
+        const overdueDateId = isTodoNote(note) && !isTodoCompleted(note)
+          ? resolveCalendarNoteDateIdInRange(note.title, currentYear - 10, currentYear, settings)
+          : null;
 
         if (dateId) {
           datesByNoteId.set(note.id, dateId);
@@ -445,6 +472,10 @@ export async function getExistingCalendarNoteMarkers(
           } else {
             appendItemForDate(notesByDate, dateId, note);
           }
+        }
+
+        if (overdueDateId && overdueDateId < todayId) {
+          overdueTasks.push({ task: note, dateId: overdueDateId });
         }
       }
 
@@ -464,6 +495,16 @@ export async function getExistingCalendarNoteMarkers(
     tasks.sort(sortTasks);
   }
 
+  overdueTasks.sort((first, second) => {
+    const dateComparison = first.dateId.localeCompare(second.dateId);
+
+    if (dateComparison !== 0) {
+      return dateComparison;
+    }
+
+    return first.task.title.localeCompare(second.task.title);
+  });
+
   const noteCountsByDate = new Map<string, number>();
   for (const [dateId, notes] of notesByDate) {
     noteCountsByDate.set(dateId, notes.length);
@@ -473,7 +514,13 @@ export async function getExistingCalendarNoteMarkers(
     noteCountsByDate.set(dateId, (noteCountsByDate.get(dateId) ?? 0) + tasks.length);
   }
 
-  return { datesByNoteId, noteCountsByDate, notesByDate, tasksByDate };
+  return {
+    datesByNoteId,
+    noteCountsByDate,
+    notesByDate,
+    tasksByDate,
+    overdueTasks,
+  };
 }
 
 async function makeUniqueNoteTitle(

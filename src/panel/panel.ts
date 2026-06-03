@@ -22,13 +22,14 @@ import { getCalendarSettings } from "../settings/settings";
 import type {
   CalendarMessage,
   CalendarSettings,
+  CalendarTaskWithDate,
   NoteSummary,
 } from "../core/types";
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
 const NOTE_CHANGE_DELETE_EVENT = 3;
 const SELECT_DATE_ACTION = "selectDate";
-
+const COLLAPSED_OVERDUE_TASK_LIMIT = 4;
 
 let panelHandle: string;
 let currentYear: number;
@@ -37,6 +38,8 @@ let visibleCalendarNoteIds = new Set<string>();
 let visibleCalendarNoteDatesById = new Map<string, string>();
 let visibleNotesByDate: Map<string, NoteSummary[]> = new Map();
 let visibleTasksByDate: Map<string, NoteSummary[]> = new Map();
+let visibleOverdueTasks: CalendarTaskWithDate[] = [];
+let showAllOverdueTasks = false;
 let selectedDateId: string | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -187,6 +190,35 @@ function renderTaskAlarmHtml(task: NoteSummary, completed: boolean): string {
   return `<span class="${classes}" title="${escapeHtml(label)}">🔔 ${escapeHtml(label)}</span>`;
 }
 
+function renderTaskItemHtml(
+  task: NoteSummary,
+  title: string,
+  datePrefix = "",
+): string {
+  const completed = isTaskCompleted(task);
+  const alarmHtml = renderTaskAlarmHtml(task, completed);
+  const visibleTitle = datePrefix ? `${datePrefix} ${title}` : title;
+
+  return `<li class="day-task ${completed ? "completed" : ""}">
+    <input
+      class="task-checkbox"
+      type="checkbox"
+      data-action="toggleTask"
+      data-note-id="${escapeHtml(task.id)}"
+      data-completed="${completed ? "true" : "false"}"
+      title="${escapeHtml(task.title)}"
+      ${completed ? "checked" : ""}
+    />
+    <button
+      class="task-title"
+      data-action="openNote"
+      data-note-id="${escapeHtml(task.id)}"
+      title="${escapeHtml(task.title)}"
+    >${escapeHtml(visibleTitle)}</button>
+    ${alarmHtml}
+  </li>`;
+}
+
 function renderTasksSectionHtml(
   dateId: string,
   tasks: readonly NoteSummary[],
@@ -199,31 +231,12 @@ function renderTasksSectionHtml(
   const items = tasks.length === 0
     ? `<div class="selected-day-empty">${escapeHtml(strings.noTasksForDayLabel)}</div>`
     : `<ul class="selected-day-list">${tasks
-        .map((task) => {
-          const completed = isTaskCompleted(task);
-          const title = stripDayIdentifierFromTitle(task.title, dateId, settings);
-
-          const alarmHtml = renderTaskAlarmHtml(task, completed);
-
-          return `<li class="day-task ${completed ? "completed" : ""}">
-            <input
-              class="task-checkbox"
-              type="checkbox"
-              data-action="toggleTask"
-              data-note-id="${escapeHtml(task.id)}"
-              data-completed="${completed ? "true" : "false"}"
-              title="${escapeHtml(task.title)}"
-              ${completed ? "checked" : ""}
-            />
-            <button
-              class="task-title"
-              data-action="openNote"
-              data-note-id="${escapeHtml(task.id)}"
-              title="${escapeHtml(task.title)}"
-            >${escapeHtml(title)}</button>
-            ${alarmHtml}
-          </li>`;
-        })
+        .map((task) =>
+          renderTaskItemHtml(
+            task,
+            stripDayIdentifierFromTitle(task.title, dateId, settings),
+          ),
+        )
         .join("")}</ul>`;
 
   return `
@@ -284,6 +297,52 @@ function buildVisibleItemCountsByDate(): Map<string, number> {
   return counts;
 }
 
+function formatOverdueDatePrefix(dateId: string): string {
+  const [year, month, day] = dateId.split("-");
+  const currentYear = String(new Date().getFullYear());
+
+  return year === currentYear ? `${day}.${month}` : `${day}.${month}.${year}`;
+}
+
+function renderOverdueTasksSectionHtml(
+  overdueTasks: readonly CalendarTaskWithDate[],
+  settings: CalendarSettings,
+): string {
+  if (overdueTasks.length === 0) {
+    return "";
+  }
+
+  const visibleTasks = showAllOverdueTasks
+    ? overdueTasks
+    : overdueTasks.slice(0, COLLAPSED_OVERDUE_TASK_LIMIT);
+  const heading = formatLocalizedString(strings.overdueTasksLabel, {
+    count: overdueTasks.length,
+  });
+  const toggleLabel = showAllOverdueTasks
+    ? strings.hideOverdueTasksLabel
+    : strings.showAllOverdueTasksLabel;
+
+  return `
+    <section class="overdue-tasks day-section">
+      <div class="selected-day-header overdue-header">${escapeHtml(heading)}</div>
+      <ul class="selected-day-list overdue-task-list">
+        ${visibleTasks
+          .map(({ task, dateId }) =>
+            renderTaskItemHtml(
+              task,
+              stripDayIdentifierFromTitle(task.title, dateId, settings),
+              formatOverdueDatePrefix(dateId),
+            ),
+          )
+          .join("")}
+      </ul>
+      ${overdueTasks.length > COLLAPSED_OVERDUE_TASK_LIMIT
+        ? `<button class="overdue-toggle" data-action="toggleOverdueTasks">${escapeHtml(toggleLabel)}</button>`
+        : ""}
+    </section>
+  `;
+}
+
 function renderSelectedDaySectionHtml(
   dateId: string,
   tasks: readonly NoteSummary[],
@@ -304,6 +363,7 @@ function renderCalendarHtml(
   noteCountsByDate: Map<string, number>,
   notesByDate: Map<string, NoteSummary[]>,
   tasksByDate: Map<string, NoteSummary[]>,
+  overdueTasks: readonly CalendarTaskWithDate[],
   settings: CalendarSettings,
 ): string {
   const todayId = getTodayDateId();
@@ -378,6 +438,8 @@ function renderCalendarHtml(
 				${cells.join("\n")}
 			</div>
 
+			${renderOverdueTasksSectionHtml(overdueTasks, settings)}
+
 			${
               selectedDateId
                 ? renderSelectedDaySectionHtml(
@@ -404,6 +466,7 @@ export async function renderCalendar(): Promise<void> {
   visibleCalendarNoteDatesById = new Map(existingMarkers.datesByNoteId);
   visibleNotesByDate = existingMarkers.notesByDate;
   visibleTasksByDate = existingMarkers.tasksByDate;
+  visibleOverdueTasks = existingMarkers.overdueTasks;
 
   const html = renderCalendarHtml(
     currentYear,
@@ -411,6 +474,7 @@ export async function renderCalendar(): Promise<void> {
     existingMarkers.noteCountsByDate,
     existingMarkers.notesByDate,
     existingMarkers.tasksByDate,
+    existingMarkers.overdueTasks,
     settings,
   );
 
@@ -496,6 +560,24 @@ export async function showCalendarPanel(): Promise<void> {
   await joplin.views.panels.show(panelHandle, true);
 }
 
+export async function toggleOverdueTasks(): Promise<void> {
+  const settings = await getCalendarSettings();
+
+  showAllOverdueTasks = !showAllOverdueTasks;
+
+  const html = renderCalendarHtml(
+    currentYear,
+    currentMonth,
+    buildVisibleItemCountsByDate(),
+    visibleNotesByDate,
+    visibleTasksByDate,
+    visibleOverdueTasks,
+    settings,
+  );
+
+  await joplin.views.panels.setHtml(panelHandle, html);
+}
+
 export async function toggleCalendarPanel(): Promise<void> {
   const isVisible = await joplin.views.panels.visible(panelHandle);
 
@@ -554,6 +636,7 @@ export async function selectCalendarDate(dateId: string): Promise<void> {
     buildVisibleItemCountsByDate(),
     visibleNotesByDate,
     visibleTasksByDate,
+    visibleOverdueTasks,
     settings,
   );
 

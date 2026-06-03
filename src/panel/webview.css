@@ -129,10 +129,14 @@
     outline-offset: -2px;
 }
 
-.selected-day {
+.selected-day,
+.overdue-tasks {
     margin-top: 12px;
     padding-top: 10px;
     border-top: 1px solid var(--joplin-divider-color);
+}
+
+.selected-day {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -148,6 +152,11 @@
     font-weight: 600;
     font-size: 12px;
     opacity: 0.85;
+}
+
+.overdue-header {
+    color: var(--joplin-color-warn, #d97706);
+    opacity: 1;
 }
 
 .selected-day-list {
@@ -237,6 +246,27 @@
 .task-title:hover,
 .day-note:hover {
     background: var(--joplin-selected-color);
+}
+
+.overdue-task-list {
+    max-height: 160px;
+}
+
+.overdue-toggle {
+    align-self: flex-start;
+    border: none;
+    background: transparent;
+    color: var(--joplin-color);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    opacity: 0.75;
+    padding: 2px 0;
+}
+
+.overdue-toggle:hover {
+    opacity: 1;
+    text-decoration: underline;
 }
 
 .create-note-button {

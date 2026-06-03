@@ -25,6 +25,7 @@ import {
   renderCalendar,
   scheduleCalendarRefresh,
   selectCalendarDate,
+  toggleOverdueTasks,
   setupPanel,
   shouldRefreshCalendarForNoteChange,
   toggleCalendarPanel,
@@ -79,6 +80,11 @@ async function handlePanelMessage(message: CalendarMessage): Promise<void> {
   if (message.name === "toggleTask") {
     await setCalendarTaskCompleted(message.id, !message.completed);
     await renderCalendar();
+    return;
+  }
+
+  if (message.name === "toggleOverdueTasks") {
+    await toggleOverdueTasks();
     return;
   }
 

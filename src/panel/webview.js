@@ -50,6 +50,13 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  if (action === "toggleOverdueTasks") {
+    await webviewApi.postMessage({
+      name: "toggleOverdueTasks",
+    });
+    return;
+  }
+
   if (action === "prevMonth") {
     await webviewApi.postMessage({
       name: "prevMonth",

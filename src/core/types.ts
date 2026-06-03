@@ -6,6 +6,7 @@ export type CalendarMessage =
   | { name: "createNote"; date: string }
   | { name: "createTask"; date: string }
   | { name: "toggleTask"; id: string; completed: boolean }
+  | { name: "toggleOverdueTasks" }
   | { name: "prevMonth" }
   | { name: "nextMonth" }
   | { name: "today" };
@@ -20,11 +21,17 @@ export type NoteSummary = {
   todo_due?: number;
 };
 
+export type CalendarTaskWithDate = {
+  task: NoteSummary;
+  dateId: string;
+};
+
 export type ExistingCalendarNoteMarkers = {
   datesByNoteId: Map<string, string>;
   noteCountsByDate: Map<string, number>;
   notesByDate: Map<string, NoteSummary[]>;
   tasksByDate: Map<string, NoteSummary[]>;
+  overdueTasks: CalendarTaskWithDate[];
 };
 
 export type NoteChangeEvent = {

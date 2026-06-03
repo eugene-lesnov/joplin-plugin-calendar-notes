@@ -7,7 +7,7 @@ A Joplin plugin that adds a calendar panel for daily notes.
 - Calendar panel toggled from the toolbar or **Tools → Toggle Calendar**.
 - Days with existing notes or tasks are highlighted.
 - Click a day to select it; sections below the calendar list that day's tasks and notes.
-- Create Joplin todo tasks for a selected day, complete them from the calendar panel, and see task reminders.
+- Create Joplin todo tasks for a selected day, complete them from the calendar panel, see task reminders, and keep overdue tasks visible in one place.
 - Simple presets for date format and new note titles.
 - Automatic notebook structure for new calendar notes using a notebook path and an optional nested structure.
 - Optional note and task templates with placeholders (`{{title}}`, `{{date}}`, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
