@@ -10,21 +10,22 @@ import {
   DAY_IDENTIFIER_FORMAT_SLASHES,
   DAY_IDENTIFIER_FORMAT_US,
   DAY_IDENTIFIER_FORMATS,
-  DEFAULT_CALENDAR_NOTES_PATH,
-  DEFAULT_CALENDAR_NOTES_PATH_PATTERN,
   DEFAULT_DAY_IDENTIFIER_FORMAT,
   DEFAULT_NEW_NOTE_TITLE_FORMAT,
+  DEFAULT_NOTEBOOK_PATH_PATTERN,
   DEFAULT_WEEK_START,
   NEW_NOTE_TITLE_FORMAT_DATE_AND_TIME,
   NEW_NOTE_TITLE_FORMAT_DATE_ONLY,
   NEW_NOTE_TITLE_FORMATS,
   SETTINGS_SECTION,
-  SETTING_CALENDAR_NOTES_PATH,
-  SETTING_CALENDAR_NOTES_PATH_PATTERN,
-  SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
-  SETTING_CALENDAR_TASK_TEMPLATE_PATH,
   SETTING_DAY_IDENTIFIER_FORMAT,
   SETTING_NEW_NOTE_TITLE_FORMAT,
+  SETTING_NOTEBOOK_NOTES_PATH,
+  SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
+  SETTING_NOTE_TEMPLATE_PATH,
+  SETTING_TASKS_PATH,
+  SETTING_TASKS_PATH_PATTERN,
+  SETTING_TASK_TEMPLATE_PATH,
   SETTING_WEEK_START,
 } from "../core/constants";
 import { weekdayLongName } from "../core/dateUtils";
@@ -55,15 +56,15 @@ function normalizeWeekStart(value: unknown): WeekStart {
   return value === "sunday" ? "sunday" : "monday";
 }
 
-function normalizeCalendarNotesPath(value: unknown): string {
-  return String(value ?? "").trim() || DEFAULT_CALENDAR_NOTES_PATH;
+function normalizeNotebookPath(value: unknown, defaultPath: string): string {
+  return String(value ?? "").trim() || defaultPath;
 }
 
-function normalizeCalendarNotesPathPattern(value: unknown): string {
+function normalizeNotebookPathPattern(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-function normalizeNoteTemplatePath(value: unknown): string {
+function normalizeTemplatePath(value: unknown): string {
   return String(value ?? "").trim();
 }
 
@@ -72,10 +73,12 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
     SETTING_DAY_IDENTIFIER_FORMAT,
     SETTING_NEW_NOTE_TITLE_FORMAT,
     SETTING_WEEK_START,
-    SETTING_CALENDAR_NOTES_PATH,
-    SETTING_CALENDAR_NOTES_PATH_PATTERN,
-    SETTING_CALENDAR_NOTE_TEMPLATE_PATH,
-    SETTING_CALENDAR_TASK_TEMPLATE_PATH,
+    SETTING_NOTEBOOK_NOTES_PATH,
+    SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
+    SETTING_NOTE_TEMPLATE_PATH,
+    SETTING_TASKS_PATH,
+    SETTING_TASKS_PATH_PATTERN,
+    SETTING_TASK_TEMPLATE_PATH,
   ]);
 
   return {
@@ -86,18 +89,22 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
       values[SETTING_NEW_NOTE_TITLE_FORMAT],
     ),
     weekStart: normalizeWeekStart(values[SETTING_WEEK_START]),
-    calendarNotesPath: normalizeCalendarNotesPath(
-      values[SETTING_CALENDAR_NOTES_PATH],
+    notebookNotesPath: normalizeNotebookPath(
+      values[SETTING_NOTEBOOK_NOTES_PATH],
+      strings.defaultNotebookNotesPath,
     ),
-    calendarNotesPathPattern: normalizeCalendarNotesPathPattern(
-      values[SETTING_CALENDAR_NOTES_PATH_PATTERN],
+    notebookNotesPathPattern: normalizeNotebookPathPattern(
+      values[SETTING_NOTEBOOK_NOTES_PATH_PATTERN],
     ),
-    calendarNoteTemplatePath: normalizeNoteTemplatePath(
-      values[SETTING_CALENDAR_NOTE_TEMPLATE_PATH],
+    noteTemplatePath: normalizeTemplatePath(values[SETTING_NOTE_TEMPLATE_PATH]),
+    tasksPath: normalizeNotebookPath(
+      values[SETTING_TASKS_PATH],
+      strings.defaultTasksPath,
     ),
-    calendarTaskTemplatePath: normalizeNoteTemplatePath(
-      values[SETTING_CALENDAR_TASK_TEMPLATE_PATH],
+    tasksPathPattern: normalizeNotebookPathPattern(
+      values[SETTING_TASKS_PATH_PATTERN],
     ),
+    taskTemplatePath: normalizeTemplatePath(values[SETTING_TASK_TEMPLATE_PATH]),
   };
 }
 
@@ -155,25 +162,25 @@ export async function registerSettings(): Promise<void> {
       },
     },
 
-    [SETTING_CALENDAR_NOTES_PATH]: {
-      value: DEFAULT_CALENDAR_NOTES_PATH,
+    [SETTING_NOTEBOOK_NOTES_PATH]: {
+      value: strings.defaultNotebookNotesPath,
       type: SettingItemType.String,
       section: SETTINGS_SECTION,
       public: true,
-      label: strings.calendarNotesPathLabel,
-      description: strings.calendarNotesPathDescription,
+      label: strings.notebookNotesPathLabel,
+      description: strings.notebookNotesPathDescription,
     },
 
-    [SETTING_CALENDAR_NOTES_PATH_PATTERN]: {
-      value: DEFAULT_CALENDAR_NOTES_PATH_PATTERN,
+    [SETTING_NOTEBOOK_NOTES_PATH_PATTERN]: {
+      value: DEFAULT_NOTEBOOK_PATH_PATTERN,
       type: SettingItemType.String,
       section: SETTINGS_SECTION,
       public: true,
-      label: strings.calendarNotesPathPatternLabel,
-      description: strings.calendarNotesPathPatternDescription,
+      label: strings.notebookNotesPathPatternLabel,
+      description: strings.notebookNotesPathPatternDescription,
     },
 
-    [SETTING_CALENDAR_NOTE_TEMPLATE_PATH]: {
+    [SETTING_NOTE_TEMPLATE_PATH]: {
       value: "",
       type: SettingItemType.String,
       section: SETTINGS_SECTION,
@@ -182,7 +189,25 @@ export async function registerSettings(): Promise<void> {
       description: strings.noteTemplateDescription,
     },
 
-    [SETTING_CALENDAR_TASK_TEMPLATE_PATH]: {
+    [SETTING_TASKS_PATH]: {
+      value: strings.defaultTasksPath,
+      type: SettingItemType.String,
+      section: SETTINGS_SECTION,
+      public: true,
+      label: strings.tasksPathLabel,
+      description: strings.tasksPathDescription,
+    },
+
+    [SETTING_TASKS_PATH_PATTERN]: {
+      value: DEFAULT_NOTEBOOK_PATH_PATTERN,
+      type: SettingItemType.String,
+      section: SETTINGS_SECTION,
+      public: true,
+      label: strings.tasksPathPatternLabel,
+      description: strings.tasksPathPatternDescription,
+    },
+
+    [SETTING_TASK_TEMPLATE_PATH]: {
       value: "",
       type: SettingItemType.String,
       section: SETTINGS_SECTION,

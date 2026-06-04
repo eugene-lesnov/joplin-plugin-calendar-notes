@@ -53,10 +53,12 @@ export type CalendarSettings = {
   dayIdentifierFormat: string;
   newNoteTitleFormat: string;
   weekStart: WeekStart;
-  calendarNotesPath: string;
-  calendarNotesPathPattern: string;
-  calendarNoteTemplatePath: string;
-  calendarTaskTemplatePath: string;
+  notebookNotesPath: string;
+  notebookNotesPathPattern: string;
+  noteTemplatePath: string;
+  tasksPath: string;
+  tasksPathPattern: string;
+  taskTemplatePath: string;
 };
 
 export type CalendarDate = {

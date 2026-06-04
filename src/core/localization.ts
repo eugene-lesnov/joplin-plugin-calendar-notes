@@ -15,12 +15,18 @@ export interface AppLocalization {
   newNoteTitleFormatDateOnlyLabel: string;
   weekStartLabel: string;
   weekStartDescription: string;
-  calendarNotesPathLabel: string;
-  calendarNotesPathDescription: string;
-  calendarNotesPathPatternLabel: string;
-  calendarNotesPathPatternDescription: string;
+  defaultNotebookNotesPath: string;
+  defaultTasksPath: string;
+  notebookNotesPathLabel: string;
+  notebookNotesPathDescription: string;
+  notebookNotesPathPatternLabel: string;
+  notebookNotesPathPatternDescription: string;
   noteTemplateLabel: string;
   noteTemplateDescription: string;
+  tasksPathLabel: string;
+  tasksPathDescription: string;
+  tasksPathPatternLabel: string;
+  tasksPathPatternDescription: string;
   taskTemplateLabel: string;
   taskTemplateDescription: string;
   toggleCalendarCommandLabel: string;
@@ -64,16 +70,24 @@ const defaultStrings: AppLocalization = {
   newNoteTitleFormatDateOnlyLabel: "Date with automatic numbering, e.g. 25.01.2026, 25.01.2026 (2)",
   weekStartLabel: "Week starts on",
   weekStartDescription: "First day of week in the calendar.",
-  calendarNotesPathLabel: "Calendar notes notebook",
-  calendarNotesPathDescription:
+  defaultNotebookNotesPath: "Calendar notes",
+  defaultTasksPath: "Tasks",
+  notebookNotesPathLabel: "Notes: notebook",
+  notebookNotesPathDescription:
     "Where new calendar notes are created. If the notebook does not exist, it will be created.",
-  calendarNotesPathPatternLabel: "Nested notebook structure",
-  calendarNotesPathPatternDescription:
-    "Optional nested notebooks inside the main notebook. Example: {{year}}/{{month}}. Leave empty to create notes directly in the main notebook.",
-  noteTemplateLabel: "New note template",
+  notebookNotesPathPatternLabel: "Notes: nested notebooks",
+  notebookNotesPathPatternDescription:
+    "Optional nested notebooks for notes. Example: {{year}}/{{month}}. Leave empty to create notes directly in the notes notebook.",
+  noteTemplateLabel: "Notes: new note template",
   noteTemplateDescription:
     "Joplin note to use as the text template for new notes. Example: Templates/Calendar note. Available: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
-  taskTemplateLabel: "New task template",
+  tasksPathLabel: "Tasks: notebook",
+  tasksPathDescription:
+    "Where new tasks are created and existing calendar tasks are searched. If the notebook does not exist, it will be created.",
+  tasksPathPatternLabel: "Tasks: nested notebooks",
+  tasksPathPatternDescription:
+    "Optional nested notebooks for tasks. Example: {{year}}/{{month}}. Leave empty to create tasks directly in the tasks notebook.",
+  taskTemplateLabel: "Tasks: new task template",
   taskTemplateDescription:
     "Joplin note to use as the text template for new tasks. Example: Templates/Calendar task. Available: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
   toggleCalendarCommandLabel: "Toggle Calendar",
@@ -119,16 +133,24 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     newNoteTitleFormatDateOnlyLabel: "Дата с автонумерацией, например 25.01.2026, 25.01.2026 (2)",
     weekStartLabel: "Первый день недели",
     weekStartDescription: "Первый день недели в календаре.",
-    calendarNotesPathLabel: "Блокнот для календарных заметок",
-    calendarNotesPathDescription:
+    defaultNotebookNotesPath: "Календарные заметки",
+    defaultTasksPath: "Задачи",
+    notebookNotesPathLabel: "Заметки: блокнот",
+    notebookNotesPathDescription:
       "Куда создавать новые календарные заметки. Если блокнота нет, он будет создан.",
-    calendarNotesPathPatternLabel: "Структура вложенных блокнотов",
-    calendarNotesPathPatternDescription:
-      "Необязательные вложенные блокноты внутри основного блокнота. Пример: {{year}}/{{month}}. Оставьте пустым, чтобы создавать заметки прямо в основном блокноте.",
-    noteTemplateLabel: "Шаблон новой заметки",
+    notebookNotesPathPatternLabel: "Заметки: вложенные блокноты",
+    notebookNotesPathPatternDescription:
+      "Необязательные вложенные блокноты для заметок. Пример: {{year}}/{{month}}. Оставьте пустым, чтобы создавать заметки прямо в блокноте заметок.",
+    noteTemplateLabel: "Заметки: шаблон новой заметки",
     noteTemplateDescription:
       "Заметка Joplin, из которой брать текст для новых заметок. Пример: Шаблоны/Календарная заметка. Доступно: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
-    taskTemplateLabel: "Шаблон новой задачи",
+    tasksPathLabel: "Задачи: блокнот",
+    tasksPathDescription:
+      "Куда создавать новые задачи и где искать календарные задачи. Если блокнота нет, он будет создан.",
+    tasksPathPatternLabel: "Задачи: вложенные блокноты",
+    tasksPathPatternDescription:
+      "Необязательные вложенные блокноты для задач. Пример: {{year}}/{{month}}. Оставьте пустым, чтобы создавать задачи прямо в блокноте задач.",
+    taskTemplateLabel: "Задачи: шаблон новой задачи",
     taskTemplateDescription:
       "Заметка Joplin, из которой брать текст для новых задач. Пример: Шаблоны/Календарная задача. Доступно: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
     toggleCalendarCommandLabel: "Показать или скрыть календарь",
