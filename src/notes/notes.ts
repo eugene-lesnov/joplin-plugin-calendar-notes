@@ -1,4 +1,5 @@
 import joplin from "api";
+import { ModelType } from "api/types";
 
 import {
   DEFAULT_NEW_NOTE_TITLE_FORMAT,
@@ -6,6 +7,7 @@ import {
 } from "../core/constants";
 import {
   daysInMonth,
+  escapeHtml,
   formatDateByPattern,
   formatDateExpression,
   formatDateId,
@@ -16,6 +18,15 @@ import {
   startOfLocalDayMs,
 } from "../core/dateUtils";
 import strings, { formatLocalizedString } from "../core/localization";
+import {
+  getNextRepeatDateId,
+  shiftAlarmToDate,
+} from "../tasks/repeat";
+import {
+  TASK_METADATA_USER_DATA_KEY,
+  createRepeatId,
+  normalizeTaskMetadata,
+} from "../tasks/taskMetadata";
 import {
   ensureNotebookPath,
   getNotebookTreeIds,
@@ -28,6 +39,8 @@ import type {
   CalendarTaskWithDate,
   ExistingCalendarNoteMarkers,
   NoteSummary,
+  RepeatFrequency,
+  TaskMetadata,
 } from "../core/types";
 
 const NOTE_PAGE_LIMIT = 100;
@@ -35,6 +48,7 @@ export const NOTE_FIELDS = [
   "id",
   "title",
   "parent_id",
+  "body",
   "deleted_time",
   "is_todo",
   "todo_completed",
@@ -46,6 +60,12 @@ const DATE_PLACEHOLDER_PATTERN = /\{\{\s*date:([^}]+)\s*\}\}/g;
 const TEXT_PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z]+)\s*\}\}/g;
 const TITLE_DUPLICATE_SUFFIX_SEPARATOR = " ";
 const CALENDAR_PATH_PLACEHOLDER_PATTERN = /\{\{\s*(year|month|quarter|week)\s*\}\}/g;
+const REPEAT_DIALOG_ID = "calendarTaskRepeatDialog";
+
+const REPEAT_NONE_VALUE = "none";
+const REPEAT_FREQUENCIES: RepeatFrequency[] = ["daily", "weekly", "monthly", "yearly"];
+
+let repeatDialogHandle: string | null = null;
 
 export function buildDayIdentifier(
   dateId: string,
@@ -191,6 +211,58 @@ async function getNoteBody(noteId: string): Promise<string> {
   })) as { body?: string | null };
 
   return note.body ?? "";
+}
+
+async function readNoteTaskMetadata(noteId: string): Promise<TaskMetadata> {
+  try {
+    return normalizeTaskMetadata(
+      await joplin.data.userDataGet<TaskMetadata>(
+        ModelType.Note,
+        noteId,
+        TASK_METADATA_USER_DATA_KEY,
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+async function writeNoteTaskMetadata(noteId: string, metadata: TaskMetadata): Promise<void> {
+  const normalized = normalizeTaskMetadata(metadata);
+
+  if (normalized.repeat) {
+    await joplin.data.userDataSet(
+      ModelType.Note,
+      noteId,
+      TASK_METADATA_USER_DATA_KEY,
+      normalized,
+    );
+    return;
+  }
+
+  await joplin.data.userDataDelete(
+    ModelType.Note,
+    noteId,
+    TASK_METADATA_USER_DATA_KEY,
+  );
+}
+
+async function withTaskMetadata(note: NoteSummary): Promise<NoteSummary> {
+  return {
+    ...note,
+    metadata: await readNoteTaskMetadata(note.id),
+  };
+}
+
+async function getNoteWithBody(noteId: string): Promise<NoteSummary> {
+  const note = (await joplin.data.get(["notes", noteId], {
+    fields: NOTE_FIELDS,
+  })) as NoteSummary;
+
+  return withTaskMetadata({
+    ...note,
+    body: note.body ?? "",
+  });
 }
 
 async function findNoteByJoplinPath(path: string): Promise<NoteSummary | null> {
@@ -408,6 +480,14 @@ function appendItemForDate(
   itemsByDate.set(dateId, [note]);
 }
 
+function getTaskMetadata(note: NoteSummary): TaskMetadata {
+  return note.metadata ?? {};
+}
+
+function hasTaskRepeat(note: NoteSummary): boolean {
+  return Boolean(getTaskMetadata(note).repeat);
+}
+
 function sortTasks(first: NoteSummary, second: NoteSummary): number {
   const firstCompleted = isTodoCompleted(first);
   const secondCompleted = isTodoCompleted(second);
@@ -421,7 +501,7 @@ function sortTasks(first: NoteSummary, second: NoteSummary): number {
 
 async function scanFolderNotes(
   folderId: string,
-  onNote: (note: NoteSummary) => void,
+  onNote: (note: NoteSummary) => void | Promise<void>,
 ): Promise<void> {
   let page = 1;
 
@@ -435,7 +515,7 @@ async function scanFolderNotes(
     const items = response.items as NoteSummary[];
 
     for (const note of items) {
-      onNote(note);
+      await onNote(note);
     }
 
     if (!response.has_more) {
@@ -483,11 +563,12 @@ export async function getExistingCalendarNoteMarkers(
   }
 
   for (const folderId of tasksFolderIds) {
-    await scanFolderNotes(folderId, (note) => {
-      if (isDeletedNote(note) || !isTodoNote(note)) {
+    await scanFolderNotes(folderId, async (rawNote) => {
+      if (isDeletedNote(rawNote) || !isTodoNote(rawNote)) {
         return;
       }
 
+      const note = await withTaskMetadata(rawNote);
       const dateId = resolveCalendarNoteDateId(
         note.title,
         year,
@@ -693,11 +774,238 @@ export async function createCalendarTaskForDate(
   }
 }
 
+function getTodayDateId(): string {
+  const today = new Date();
+  return formatDateId(today.getFullYear(), today.getMonth(), today.getDate());
+}
+
+
+function getRepeatLabel(frequency: RepeatFrequency): string {
+  if (frequency === "daily") {
+    return strings.taskRepeatDailyLabel;
+  }
+
+  if (frequency === "weekly") {
+    return strings.taskRepeatWeeklyLabel;
+  }
+
+  if (frequency === "monthly") {
+    return strings.taskRepeatMonthlyLabel;
+  }
+
+  return strings.taskRepeatYearlyLabel;
+}
+
+function replaceTaskDateInTitle(
+  title: string,
+  dateId: string,
+  nextDateId: string,
+  settings: CalendarSettings,
+): string {
+  const currentIdentifier = buildDayIdentifier(dateId, settings);
+  const nextIdentifier = buildDayIdentifier(nextDateId, settings);
+
+  if (title.startsWith(currentIdentifier)) {
+    return `${nextIdentifier}${title.slice(currentIdentifier.length)}`;
+  }
+
+  return `${nextIdentifier} - ${title}`;
+}
+
+async function createNextRepeatedTask(
+  task: NoteSummary,
+  dateId: string,
+  metadata: TaskMetadata,
+  settings: CalendarSettings,
+): Promise<void> {
+  if (!metadata.repeat) {
+    return;
+  }
+
+  const nextDateId = getNextRepeatDateId(dateId, metadata.repeat, getTodayDateId());
+  const taskFolderIds = await getTasksTreeIds(settings);
+  const nextTitle = replaceTaskDateInTitle(task.title, dateId, nextDateId, settings);
+
+  const existing = await findRepeatedTaskByDate(
+    taskFolderIds,
+    metadata.repeat.id,
+    nextDateId,
+    settings,
+  );
+
+  if (existing) {
+    return;
+  }
+
+  const parentId = await getNotebookFolderIdForCreate(
+    settings.tasksPath,
+    nextDateId,
+    settings.tasksPathPattern,
+  );
+
+  if (!parentId) {
+    await joplin.views.dialogs.showMessageBox(
+      strings.createCalendarNoteNoNotebookError,
+    );
+    return;
+  }
+
+  const dayStart = startOfLocalDayMs(nextDateId);
+  const nextAlarm = shiftAlarmToDate(task.todo_due, dateId, nextDateId);
+  const payload: Record<string, unknown> = {
+    title: nextTitle,
+    body: task.body ?? "",
+    parent_id: parentId,
+    is_todo: 1,
+    todo_completed: 0,
+    user_created_time: dayStart,
+    user_updated_time: dayStart,
+    source_application: PLUGIN_ID,
+  };
+
+  if (nextAlarm !== undefined) {
+    payload.todo_due = nextAlarm;
+  }
+
+  const created = await joplin.data.post(["notes"], null, payload) as NoteSummary;
+  await writeNoteTaskMetadata(created.id, metadata);
+}
+
+
+async function findRepeatedTaskByDate(
+  folderIds: ReadonlySet<string>,
+  repeatId: string,
+  dateId: string,
+  settings: CalendarSettings,
+): Promise<NoteSummary | null> {
+  for (const folderId of folderIds) {
+    let page = 1;
+
+    while (true) {
+      const response = await joplin.data.get(["folders", folderId, "notes"], {
+        fields: NOTE_FIELDS,
+        limit: NOTE_PAGE_LIMIT,
+        page,
+      });
+
+      const items = response.items as NoteSummary[];
+
+      for (const rawNote of items) {
+        const note = await withTaskMetadata(rawNote);
+        const repeat = getTaskMetadata(note).repeat;
+
+        if (
+          !isDeletedNote(note)
+          && isTodoNote(note)
+          && repeat?.id === repeatId
+          && isCalendarNoteTitleForDate(note.title, dateId, settings)
+        ) {
+          return note;
+        }
+      }
+
+      if (!response.has_more) {
+        break;
+      }
+
+      page += 1;
+    }
+  }
+
+  return null;
+}
+
+
 export async function setCalendarTaskCompleted(
   noteId: string,
   completed: boolean,
 ): Promise<void> {
+  const task = await getNoteWithBody(noteId);
+  const metadata = getTaskMetadata(task);
+
   await joplin.data.put(["notes", noteId], null, {
     todo_completed: completed ? Date.now() : 0,
   });
+
+  if (!completed) {
+    return;
+  }
+
+  const settings = await getCalendarSettings();
+  const dateId = resolveCalendarNoteDateIdInRange(
+    task.title,
+    new Date().getFullYear() - 10,
+    new Date().getFullYear() + 10,
+    settings,
+  );
+
+  if (!dateId) {
+    return;
+  }
+
+  if (metadata.repeat) {
+    await createNextRepeatedTask(task, dateId, metadata, settings);
+  }
+}
+
+function renderRepeatDialogHtml(currentFrequency: RepeatFrequency | typeof REPEAT_NONE_VALUE): string {
+  const option = (value: RepeatFrequency | typeof REPEAT_NONE_VALUE, label: string) => `
+    <label style="display:block;margin:8px 0;">
+      <input type="radio" name="repeat" value="${value}" ${currentFrequency === value ? "checked" : ""} />
+      ${label}
+    </label>
+  `;
+
+  return `
+    <form name="repeatForm">
+      <h2>${strings.taskRepeatDialogTitle}</h2>
+      ${option(REPEAT_NONE_VALUE, strings.taskRepeatNoneLabel)}
+      ${REPEAT_FREQUENCIES.map((frequency) => option(frequency, getRepeatLabel(frequency))).join("")}
+    </form>
+  `;
+}
+
+async function getRepeatDialogHandle(): Promise<string> {
+  if (!repeatDialogHandle) {
+    repeatDialogHandle = await joplin.views.dialogs.create(REPEAT_DIALOG_ID);
+  }
+
+  return repeatDialogHandle;
+}
+
+export async function clearTaskRepeat(noteId: string): Promise<void> {
+  await writeNoteTaskMetadata(noteId, {});
+}
+
+export async function setTaskRepeat(noteId: string): Promise<void> {
+  const task = await getNoteWithBody(noteId);
+  const metadata = getTaskMetadata(task);
+  const currentFrequency = metadata.repeat?.frequency ?? REPEAT_NONE_VALUE;
+  const dialog = await getRepeatDialogHandle();
+
+  await joplin.views.dialogs.setHtml(dialog, renderRepeatDialogHtml(currentFrequency));
+  await joplin.views.dialogs.setButtons(dialog, [
+    { id: "ok" },
+    { id: "cancel" },
+  ]);
+
+  const result = await joplin.views.dialogs.open(dialog);
+
+  if (result.id !== "ok") {
+    return;
+  }
+
+  const selected = result.formData?.repeatForm?.repeat;
+  const frequency = REPEAT_FREQUENCIES.find((item) => item === selected);
+  const nextMetadata: TaskMetadata = frequency
+    ? {
+        repeat: {
+          id: metadata.repeat?.id ?? createRepeatId(),
+          frequency,
+          interval: 1,
+        },
+      }
+    : {};
+
+  await writeNoteTaskMetadata(noteId, nextMetadata);
 }

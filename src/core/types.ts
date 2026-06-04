@@ -1,11 +1,25 @@
 export type WeekStart = "monday" | "sunday";
 
+export type RepeatFrequency = "daily" | "weekly" | "monthly" | "yearly";
+
+export type RepeatRule = {
+  id: string;
+  frequency: RepeatFrequency;
+  interval: number;
+};
+
+export type TaskMetadata = {
+  repeat?: RepeatRule;
+};
+
 export type CalendarMessage =
   | { name: "selectDate"; date: string }
   | { name: "openNote"; id: string }
   | { name: "createNote"; date: string }
   | { name: "createTask"; date: string }
   | { name: "toggleTask"; id: string; completed: boolean }
+  | { name: "setTaskRepeat"; id: string }
+  | { name: "clearTaskRepeat"; id: string }
   | { name: "toggleOverdueTasks" }
   | { name: "prevMonth" }
   | { name: "nextMonth" }
@@ -15,6 +29,8 @@ export type NoteSummary = {
   id: string;
   title: string;
   parent_id?: string;
+  body?: string;
+  metadata?: TaskMetadata;
   deleted_time?: number;
   is_todo?: number;
   todo_completed?: number;

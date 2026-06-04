@@ -44,6 +44,15 @@ export interface AppLocalization {
   createTaskButtonLabel: string;
   createNoteButtonLabel: string;
   newTaskDefaultTitle: string;
+  taskRepeatDialogTitle: string;
+  taskRepeatNoneLabel: string;
+  taskRepeatDailyLabel: string;
+  taskRepeatWeeklyLabel: string;
+  taskRepeatMonthlyLabel: string;
+  taskRepeatYearlyLabel: string;
+  taskRepeatMetaLabel: string;
+  taskRepeatClearHint: string;
+  taskAlarmTitleLabel: string;
   createCalendarNoteNoNotebookError: string;
   createCalendarNoteTemplateReadError: string;
   createCalendarTaskTemplateReadError: string;
@@ -105,6 +114,15 @@ const defaultStrings: AppLocalization = {
   createTaskButtonLabel: "+ New task",
   createNoteButtonLabel: "+ New note",
   newTaskDefaultTitle: "New task",
+  taskRepeatDialogTitle: "Task repeat",
+  taskRepeatNoneLabel: "Do not repeat",
+  taskRepeatDailyLabel: "Every day",
+  taskRepeatWeeklyLabel: "Every week",
+  taskRepeatMonthlyLabel: "Every month",
+  taskRepeatYearlyLabel: "Every year",
+  taskRepeatMetaLabel: "Repeats: {{repeat}}",
+  taskRepeatClearHint: "Right-click to remove repeat.",
+  taskAlarmTitleLabel: "Reminder: {{alarm}}. Calendar day: {{date}}.",
   createCalendarNoteNoNotebookError:
     "Cannot create a calendar note: no notebook was found.",
   createCalendarNoteTemplateReadError:
@@ -168,6 +186,15 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     createTaskButtonLabel: "+ Новая задача",
     createNoteButtonLabel: "+ Новая заметка",
     newTaskDefaultTitle: "Новая задача",
+    taskRepeatDialogTitle: "Повтор задачи",
+    taskRepeatNoneLabel: "Не повторять",
+    taskRepeatDailyLabel: "Каждый день",
+    taskRepeatWeeklyLabel: "Каждую неделю",
+    taskRepeatMonthlyLabel: "Каждый месяц",
+    taskRepeatYearlyLabel: "Каждый год",
+    taskRepeatMetaLabel: "Повтор: {{repeat}}",
+    taskRepeatClearHint: "ПКМ — удалить повтор.",
+    taskAlarmTitleLabel: "Напоминание: {{alarm}}. День задачи: {{date}}.",
     createCalendarNoteNoNotebookError: "Не удалось создать календарную заметку: блокнот не найден.",
     createCalendarNoteTemplateReadError:
       "Не удалось создать календарную заметку: не получилось найти или прочитать заметку-шаблон {{path}}",

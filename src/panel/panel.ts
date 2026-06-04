@@ -24,6 +24,7 @@ import type {
   CalendarSettings,
   CalendarTaskWithDate,
   NoteSummary,
+  RepeatFrequency,
 } from "../core/types";
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
@@ -157,25 +158,73 @@ function isSameLocalDay(first: Date, second: Date): boolean {
     && first.getDate() === second.getDate();
 }
 
-function formatTaskAlarm(alarmTime: number): string {
+function formatTaskAlarm(alarmTime: number, taskDateId: string): string {
   const alarmDate = new Date(alarmTime);
-  const now = new Date();
+  const taskDate = new Date(`${taskDateId}T00:00:00`);
   const time = `${pad2(alarmDate.getHours())}:${pad2(alarmDate.getMinutes())}`;
 
-  if (isSameLocalDay(alarmDate, now)) {
+  if (isSameLocalDay(alarmDate, taskDate)) {
     return time;
   }
 
   const date = `${pad2(alarmDate.getDate())}.${pad2(alarmDate.getMonth() + 1)}`;
 
-  if (alarmDate.getFullYear() === now.getFullYear()) {
+  if (alarmDate.getFullYear() === taskDate.getFullYear()) {
     return `${date} ${time}`;
   }
 
   return `${date}.${alarmDate.getFullYear()} ${time}`;
 }
 
-function renderTaskAlarmHtml(task: NoteSummary, completed: boolean): string {
+function formatTaskDateLabel(dateId: string): string {
+  const [year, month, day] = dateId.split("-");
+  const currentYear = String(new Date().getFullYear());
+
+  return year === currentYear ? `${day}.${month}` : `${day}.${month}.${year}`;
+}
+
+function getRepeatLabel(frequency: RepeatFrequency): string {
+  if (frequency === "daily") {
+    return strings.taskRepeatDailyLabel;
+  }
+
+  if (frequency === "weekly") {
+    return strings.taskRepeatWeeklyLabel;
+  }
+
+  if (frequency === "monthly") {
+    return strings.taskRepeatMonthlyLabel;
+  }
+
+  return strings.taskRepeatYearlyLabel;
+}
+
+function renderTaskRepeatHtml(task: NoteSummary): string {
+  const repeat = task.metadata?.repeat;
+
+  if (!repeat) {
+    return `<button
+      class="task-repeat-button empty"
+      data-action="setTaskRepeat"
+      data-note-id="${escapeHtml(task.id)}"
+      data-can-clear-repeat="false"
+      title="${escapeHtml(strings.taskRepeatNoneLabel)}"
+    >↻</button>`;
+  }
+
+  const label = getRepeatLabel(repeat.frequency);
+  const title = `${formatLocalizedString(strings.taskRepeatMetaLabel, { repeat: label })}. ${strings.taskRepeatClearHint}`;
+
+  return `<button
+    class="task-repeat-button active"
+    data-action="setTaskRepeat"
+    data-note-id="${escapeHtml(task.id)}"
+    data-can-clear-repeat="true"
+    title="${escapeHtml(title)}"
+  >↻ ${escapeHtml(label)}</button>`;
+}
+
+function renderTaskAlarmHtml(task: NoteSummary, completed: boolean, dateId: string): string {
   if (!task.todo_due || task.todo_due <= 0) {
     return "";
   }
@@ -184,18 +233,24 @@ function renderTaskAlarmHtml(task: NoteSummary, completed: boolean): string {
   const classes = ["task-alarm", overdue ? "overdue" : ""]
     .filter(Boolean)
     .join(" ");
-  const label = formatTaskAlarm(task.todo_due);
+  const label = formatTaskAlarm(task.todo_due, dateId);
+  const title = formatLocalizedString(strings.taskAlarmTitleLabel, {
+    alarm: label,
+    date: formatTaskDateLabel(dateId),
+  });
 
-  return `<span class="${classes}" title="${escapeHtml(label)}">🔔 ${escapeHtml(label)}</span>`;
+  return `<span class="${classes}" title="${escapeHtml(title)}">🔔 ${escapeHtml(label)}</span>`;
 }
 
 function renderTaskItemHtml(
   task: NoteSummary,
   title: string,
+  dateId: string,
   datePrefix = "",
 ): string {
   const completed = isTaskCompleted(task);
-  const alarmHtml = renderTaskAlarmHtml(task, completed);
+  const alarmHtml = renderTaskAlarmHtml(task, completed, dateId);
+  const repeatHtml = renderTaskRepeatHtml(task);
   const visibleTitle = datePrefix ? `${datePrefix} ${title}` : title;
 
   return `<li class="day-task ${completed ? "completed" : ""}">
@@ -214,6 +269,7 @@ function renderTaskItemHtml(
       data-note-id="${escapeHtml(task.id)}"
       title="${escapeHtml(task.title)}"
     >${escapeHtml(visibleTitle)}</button>
+    ${repeatHtml}
     ${alarmHtml}
   </li>`;
 }
@@ -230,6 +286,7 @@ function renderTasksSectionHtml(
           renderTaskItemHtml(
             task,
             stripDayIdentifierFromTitle(task.title, dateId, settings),
+            dateId,
           ),
         )
         .join("")}</ul>`;
@@ -320,6 +377,7 @@ function renderOverdueTasksSectionHtml(
                 renderTaskItemHtml(
                   task,
                   stripDayIdentifierFromTitle(task.title, dateId, settings),
+                  dateId,
                   formatOverdueDatePrefix(dateId),
                 ),
               )

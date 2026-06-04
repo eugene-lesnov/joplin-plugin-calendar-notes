@@ -1,3 +1,18 @@
+document.addEventListener("contextmenu", async (event) => {
+  const target = event.target.closest('[data-action="setTaskRepeat"]');
+
+  if (!target || target.dataset.canClearRepeat !== "true") {
+    return;
+  }
+
+  event.preventDefault();
+
+  await webviewApi.postMessage({
+    name: "clearTaskRepeat",
+    id: target.dataset.noteId,
+  });
+});
+
 document.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-action]");
 
@@ -49,6 +64,15 @@ document.addEventListener("click", async (event) => {
     });
     return;
   }
+
+  if (action === "setTaskRepeat") {
+    await webviewApi.postMessage({
+      name: "setTaskRepeat",
+      id: target.dataset.noteId,
+    });
+    return;
+  }
+
 
   if (action === "toggleOverdueTasks") {
     await webviewApi.postMessage({

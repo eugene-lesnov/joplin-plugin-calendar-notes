@@ -211,11 +211,35 @@
     white-space: nowrap;
 }
 
+.task-repeat-button,
 .task-alarm {
     flex: 0 0 auto;
     font-size: 11px;
-    opacity: 0.75;
     white-space: nowrap;
+}
+
+.task-repeat-button {
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--joplin-color);
+    cursor: pointer;
+    font-family: inherit;
+    opacity: 0.45;
+    padding: 2px 4px;
+}
+
+.task-repeat-button.active {
+    opacity: 0.75;
+}
+
+.task-repeat-button:hover {
+    background: var(--joplin-selected-color);
+    opacity: 1;
+}
+
+.task-alarm {
+    opacity: 0.75;
 }
 
 .task-alarm.overdue {

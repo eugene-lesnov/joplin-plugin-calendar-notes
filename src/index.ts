@@ -14,9 +14,11 @@ import {
 } from "./core/constants";
 import strings, { getLocales, setLocale } from "./core/localization";
 import {
+  clearTaskRepeat,
   createCalendarNoteForDate,
   createCalendarTaskForDate,
   setCalendarTaskCompleted,
+  setTaskRepeat,
 } from "./notes/notes";
 import {
   goToNextMonth,
@@ -83,6 +85,18 @@ async function handlePanelMessage(message: CalendarMessage): Promise<void> {
 
   if (message.name === "toggleTask") {
     await setCalendarTaskCompleted(message.id, !message.completed);
+    await renderCalendar();
+    return;
+  }
+
+  if (message.name === "setTaskRepeat") {
+    await setTaskRepeat(message.id);
+    await renderCalendar();
+    return;
+  }
+
+  if (message.name === "clearTaskRepeat") {
+    await clearTaskRepeat(message.id);
     await renderCalendar();
     return;
   }

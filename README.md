@@ -7,7 +7,7 @@ A Joplin plugin that adds a calendar panel for daily notes.
 - Calendar panel toggled from the toolbar or **Tools → Toggle Calendar**.
 - Days with existing notes or tasks are highlighted.
 - Click a day to select it; sections below the calendar list that day's tasks and notes.
-- Create Joplin todo tasks for a selected day, complete them from the calendar panel, see task reminders, and keep overdue tasks visible in one place.
+- Create Joplin todo tasks for a selected day, complete them from the calendar panel, configure simple recurring tasks, see task reminders, and keep overdue tasks visible in one place.
 - Simple presets for date format and new note titles.
 - Separate notebooks and nested structures for calendar notes and tasks.
 - Optional note and task templates with placeholders (`{{title}}`, `{{date}}`, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
@@ -41,6 +41,10 @@ Joplin **3.5** or newer.
 ## How notes are matched
 
 Notes are matched only inside the configured notes notebook and its nested notebooks. Joplin todo tasks are matched only inside the configured tasks notebook and its nested notebooks. An item belongs to a day when its title starts with the selected date format, so renamed items like `25.01.2026 meeting` remain visible for that day. New notes and tasks are created in their own configured notebooks. If a nested structure is set, missing nested notebooks are created automatically.
+
+## Recurring tasks
+
+Recurring tasks are ordinary Joplin todo notes with plugin metadata stored in synced Joplin user data. Use the `↻` button in the calendar panel to choose daily, weekly, monthly, or yearly repetition for a task. When a repeated task is completed, the next one is created. If the task has a reminder, the next task keeps the same reminder offset from the task date, so reminders set before or after the task day stay intentional.
 
 ## License
 
