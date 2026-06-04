@@ -32,12 +32,11 @@ export interface AppLocalization {
   overdueTasksLabel: string;
   showAllOverdueTasksLabel: string;
   hideOverdueTasksLabel: string;
-  selectedTasksLabel: string;
-  selectedNotesLabel: string;
+  selectedDayLabel: string;
+  tasksSectionLabel: string;
+  notesSectionLabel: string;
   createTaskButtonLabel: string;
   createNoteButtonLabel: string;
-  noTasksForDayLabel: string;
-  noNotesForDayLabel: string;
   newTaskDefaultTitle: string;
   createCalendarNoteNoNotebookError: string;
   createCalendarNoteTemplateReadError: string;
@@ -86,12 +85,11 @@ const defaultStrings: AppLocalization = {
   overdueTasksLabel: "Overdue tasks: {{count}}",
   showAllOverdueTasksLabel: "Show all",
   hideOverdueTasksLabel: "Hide",
-  selectedTasksLabel: "Tasks for {{date}}:",
-  selectedNotesLabel: "Notes for {{date}}:",
+  selectedDayLabel: "{{date}}",
+  tasksSectionLabel: "Tasks",
+  notesSectionLabel: "Notes",
   createTaskButtonLabel: "+ New task",
   createNoteButtonLabel: "+ New note",
-  noTasksForDayLabel: "No tasks yet.",
-  noNotesForDayLabel: "No notes yet.",
   newTaskDefaultTitle: "New task",
   createCalendarNoteNoNotebookError:
     "Cannot create a calendar note: no notebook was found.",
@@ -142,12 +140,11 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     overdueTasksLabel: "Просроченные задачи: {{count}}",
     showAllOverdueTasksLabel: "Показать все",
     hideOverdueTasksLabel: "Скрыть",
-    selectedTasksLabel: "Задачи за {{date}}:",
-    selectedNotesLabel: "Заметки за {{date}}:",
+    selectedDayLabel: "{{date}}",
+    tasksSectionLabel: "Задачи",
+    notesSectionLabel: "Заметки",
     createTaskButtonLabel: "+ Новая задача",
     createNoteButtonLabel: "+ Новая заметка",
-    noTasksForDayLabel: "Задач пока нет.",
-    noNotesForDayLabel: "Заметок пока нет.",
     newTaskDefaultTitle: "Новая задача",
     createCalendarNoteNoNotebookError: "Не удалось создать календарную заметку: блокнот не найден.",
     createCalendarNoteTemplateReadError:

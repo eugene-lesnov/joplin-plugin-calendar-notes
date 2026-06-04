@@ -223,12 +223,8 @@ function renderTasksSectionHtml(
   tasks: readonly NoteSummary[],
   settings: CalendarSettings,
 ): string {
-  const heading = formatLocalizedString(strings.selectedTasksLabel, {
-    date: buildDayIdentifier(dateId, settings),
-  });
-
   const items = tasks.length === 0
-    ? `<div class="selected-day-empty">${escapeHtml(strings.noTasksForDayLabel)}</div>`
+    ? ""
     : `<ul class="selected-day-list">${tasks
         .map((task) =>
           renderTaskItemHtml(
@@ -240,7 +236,7 @@ function renderTasksSectionHtml(
 
   return `
     <section class="day-section day-tasks">
-      <div class="selected-day-header">${escapeHtml(heading)}</div>
+      <div class="selected-day-header">${escapeHtml(strings.tasksSectionLabel)}</div>
       ${items}
       <button class="create-note-button" data-action="createTask" data-date="${escapeHtml(dateId)}">
         ${escapeHtml(strings.createTaskButtonLabel)}
@@ -252,14 +248,9 @@ function renderTasksSectionHtml(
 function renderNotesSectionHtml(
   dateId: string,
   notes: readonly NoteSummary[],
-  settings: CalendarSettings,
 ): string {
-  const heading = formatLocalizedString(strings.selectedNotesLabel, {
-    date: buildDayIdentifier(dateId, settings),
-  });
-
   const items = notes.length === 0
-    ? `<div class="selected-day-empty">${escapeHtml(strings.noNotesForDayLabel)}</div>`
+    ? ""
     : `<ul class="selected-day-list">${notes
         .map(
           (note) => `<li><button
@@ -273,7 +264,7 @@ function renderNotesSectionHtml(
 
   return `
     <section class="day-section day-notes">
-      <div class="selected-day-header">${escapeHtml(heading)}</div>
+      <div class="selected-day-header">${escapeHtml(strings.notesSectionLabel)}</div>
       ${items}
       <button class="create-note-button" data-action="createNote" data-date="${escapeHtml(dateId)}">
         ${escapeHtml(strings.createNoteButtonLabel)}
@@ -345,10 +336,15 @@ function renderSelectedDaySectionHtml(
   notes: readonly NoteSummary[],
   settings: CalendarSettings,
 ): string {
+  const title = formatLocalizedString(strings.selectedDayLabel, {
+    date: buildDayIdentifier(dateId, settings),
+  });
+
   return `
     <div class="selected-day">
+      <div class="selected-day-title">${escapeHtml(title)}</div>
       ${renderTasksSectionHtml(dateId, tasks, settings)}
-      ${renderNotesSectionHtml(dateId, notes, settings)}
+      ${renderNotesSectionHtml(dateId, notes)}
     </div>
   `;
 }
