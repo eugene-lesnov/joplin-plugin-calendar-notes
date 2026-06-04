@@ -29,7 +29,6 @@ import type {
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
 const NOTE_CHANGE_DELETE_EVENT = 3;
 const SELECT_DATE_ACTION = "selectDate";
-const COLLAPSED_OVERDUE_TASK_LIMIT = 4;
 
 let panelHandle: string;
 let currentYear: number;
@@ -312,32 +311,29 @@ function renderOverdueTasksSectionHtml(
     return "";
   }
 
-  const visibleTasks = showAllOverdueTasks
-    ? overdueTasks
-    : overdueTasks.slice(0, COLLAPSED_OVERDUE_TASK_LIMIT);
   const heading = formatLocalizedString(strings.overdueTasksLabel, {
     count: overdueTasks.length,
   });
-  const toggleLabel = showAllOverdueTasks
-    ? strings.hideOverdueTasksLabel
-    : strings.showAllOverdueTasksLabel;
+  const toggleLabel = showAllOverdueTasks ? "⌄" : "›";
 
   return `
     <section class="overdue-tasks day-section">
-      <div class="selected-day-header overdue-header">${escapeHtml(heading)}</div>
-      <ul class="selected-day-list overdue-task-list">
-        ${visibleTasks
-          .map(({ task, dateId }) =>
-            renderTaskItemHtml(
-              task,
-              stripDayIdentifierFromTitle(task.title, dateId, settings),
-              formatOverdueDatePrefix(dateId),
-            ),
-          )
-          .join("")}
-      </ul>
-      ${overdueTasks.length > COLLAPSED_OVERDUE_TASK_LIMIT
-        ? `<button class="overdue-toggle" data-action="toggleOverdueTasks">${escapeHtml(toggleLabel)}</button>`
+      <div class="overdue-summary">
+        <div class="selected-day-header overdue-header">⚠ ${escapeHtml(heading)}</div>
+        <button class="overdue-toggle" data-action="toggleOverdueTasks">${escapeHtml(toggleLabel)}</button>
+      </div>
+      ${showAllOverdueTasks
+        ? `<ul class="selected-day-list overdue-task-list">
+            ${overdueTasks
+              .map(({ task, dateId }) =>
+                renderTaskItemHtml(
+                  task,
+                  stripDayIdentifierFromTitle(task.title, dateId, settings),
+                  formatOverdueDatePrefix(dateId),
+                ),
+              )
+              .join("")}
+          </ul>`
         : ""}
     </section>
   `;

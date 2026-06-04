@@ -248,25 +248,36 @@
     background: var(--joplin-selected-color);
 }
 
+.overdue-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
 .overdue-task-list {
-    max-height: 160px;
+    max-height: 220px;
 }
 
 .overdue-toggle {
-    align-self: flex-start;
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
     border: none;
+    border-radius: 50%;
     background: transparent;
     color: var(--joplin-color);
     cursor: pointer;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 18px;
+    line-height: 20px;
     opacity: 0.75;
-    padding: 2px 0;
+    padding: 0;
 }
 
 .overdue-toggle:hover {
+    background: var(--joplin-selected-color);
     opacity: 1;
-    text-decoration: underline;
 }
 
 .create-note-button {
