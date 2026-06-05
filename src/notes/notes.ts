@@ -288,9 +288,14 @@ async function findNoteByJoplinPath(path: string): Promise<NoteSummary | null> {
   return findNoteByExactTitleInFolder(notebook.id, noteTitle);
 }
 
-async function readNoteTemplateNote(templatePath: string): Promise<string> {
+type NoteTemplateSource = {
+  body: string;
+  noteId: string | null;
+};
+
+async function readNoteTemplateSource(templatePath: string): Promise<NoteTemplateSource> {
   if (!templatePath) {
-    return "";
+    return { body: "", noteId: null };
   }
 
   const templateNote = await findNoteByJoplinPath(templatePath);
@@ -299,7 +304,43 @@ async function readNoteTemplateNote(templatePath: string): Promise<string> {
     throw new Error(`Template note not found by path: ${templatePath}`);
   }
 
-  return getNoteBody(templateNote.id);
+  return {
+    body: await getNoteBody(templateNote.id),
+    noteId: templateNote.id,
+  };
+}
+
+async function copyNoteTags(sourceNoteId: string | null, targetNoteId: string): Promise<void> {
+  if (!sourceNoteId) {
+    return;
+  }
+
+  let page = 1;
+
+  while (true) {
+    const response = await joplin.data.get(["notes", sourceNoteId, "tags"], {
+      fields: ["id"],
+      limit: NOTE_PAGE_LIMIT,
+      page,
+    });
+    const tags = response.items as Array<{ id: string }>;
+
+    for (const tag of tags) {
+      try {
+        await joplin.data.post(["tags", tag.id, "notes"], null, {
+          id: targetNoteId,
+        });
+      } catch (error) {
+        console.warn("Failed to copy template tag.", error);
+      }
+    }
+
+    if (!response.has_more) {
+      break;
+    }
+
+    page += 1;
+  }
 }
 
 function getDateReplacements(dateId: string): Record<string, string> {
@@ -666,10 +707,10 @@ async function createCalendarNote(
     return null;
   }
 
-  let rawTemplate = "";
+  let templateSource: NoteTemplateSource = { body: "", noteId: null };
 
   try {
-    rawTemplate = await readNoteTemplateNote(settings.noteTemplatePath);
+    templateSource = await readNoteTemplateSource(settings.noteTemplatePath);
   } catch (error) {
     console.warn("Failed to read calendar note template.", error);
     await joplin.views.dialogs.showMessageBox(
@@ -680,17 +721,19 @@ async function createCalendarNote(
     return null;
   }
 
-  const body = renderNoteTemplate(rawTemplate, dateId, title, createdAt);
+  const body = renderNoteTemplate(templateSource.body, dateId, title, createdAt);
   const dayStart = startOfLocalDayMs(dateId);
-
-  return joplin.data.post(["notes"], null, {
+  const created = await joplin.data.post(["notes"], null, {
     title,
     body,
     parent_id: parentId,
     user_created_time: dayStart,
     user_updated_time: dayStart,
     source_application: PLUGIN_ID,
-  }) as Promise<NoteSummary>;
+  }) as NoteSummary;
+
+  await copyNoteTags(templateSource.noteId, created.id);
+  return created;
 }
 
 async function createCalendarTask(
@@ -712,10 +755,10 @@ async function createCalendarTask(
   }
 
   const createdAt = new Date();
-  let rawTemplate = "";
+  let templateSource: NoteTemplateSource = { body: "", noteId: null };
 
   try {
-    rawTemplate = await readNoteTemplateNote(settings.taskTemplatePath);
+    templateSource = await readNoteTemplateSource(settings.taskTemplatePath);
   } catch (error) {
     console.warn("Failed to read calendar task template.", error);
     await joplin.views.dialogs.showMessageBox(
@@ -726,10 +769,9 @@ async function createCalendarTask(
     return null;
   }
 
-  const body = renderNoteTemplate(rawTemplate, dateId, title, createdAt);
+  const body = renderNoteTemplate(templateSource.body, dateId, title, createdAt);
   const dayStart = startOfLocalDayMs(dateId);
-
-  return joplin.data.post(["notes"], null, {
+  const created = await joplin.data.post(["notes"], null, {
     title,
     body,
     parent_id: parentId,
@@ -738,7 +780,10 @@ async function createCalendarTask(
     user_created_time: dayStart,
     user_updated_time: dayStart,
     source_application: PLUGIN_ID,
-  }) as Promise<NoteSummary>;
+  }) as NoteSummary;
+
+  await copyNoteTags(templateSource.noteId, created.id);
+  return created;
 }
 
 export async function createCalendarNoteForDate(
@@ -812,23 +857,37 @@ function replaceTaskDateInTitle(
   return `${nextIdentifier} - ${title}`;
 }
 
-async function renderRepeatedTaskBody(
-  previousBody: string | undefined,
+type RepeatedTaskContent = {
+  body: string;
+  tagSourceNoteId: string | null;
+};
+
+async function renderRepeatedTaskContent(
+  previousTask: NoteSummary,
   nextDateId: string,
   nextTitle: string,
   settings: CalendarSettings,
   createdAt: Date,
-): Promise<string> {
+): Promise<RepeatedTaskContent> {
   if (!settings.taskTemplatePath) {
-    return previousBody ?? "";
+    return {
+      body: previousTask.body ?? "",
+      tagSourceNoteId: previousTask.id,
+    };
   }
 
   try {
-    const rawTemplate = await readNoteTemplateNote(settings.taskTemplatePath);
-    return renderNoteTemplate(rawTemplate, nextDateId, nextTitle, createdAt);
+    const templateSource = await readNoteTemplateSource(settings.taskTemplatePath);
+    return {
+      body: renderNoteTemplate(templateSource.body, nextDateId, nextTitle, createdAt),
+      tagSourceNoteId: templateSource.noteId,
+    };
   } catch (error) {
-    console.warn("Failed to read repeated task template. Copying previous body.", error);
-    return previousBody ?? "";
+    console.warn("Failed to read repeated task template. Copying previous body and tags.", error);
+    return {
+      body: previousTask.body ?? "",
+      tagSourceNoteId: previousTask.id,
+    };
   }
 }
 
@@ -873,8 +932,8 @@ async function createNextRepeatedTask(
   const createdAt = new Date();
   const dayStart = startOfLocalDayMs(nextDateId);
   const nextAlarm = shiftAlarmToDate(task.todo_due, dateId, nextDateId);
-  const body = await renderRepeatedTaskBody(
-    task.body,
+  const content = await renderRepeatedTaskContent(
+    task,
     nextDateId,
     nextTitle,
     settings,
@@ -882,7 +941,7 @@ async function createNextRepeatedTask(
   );
   const payload: Record<string, unknown> = {
     title: nextTitle,
-    body,
+    body: content.body,
     parent_id: parentId,
     is_todo: 1,
     todo_completed: 0,
@@ -896,6 +955,7 @@ async function createNextRepeatedTask(
   }
 
   const created = await joplin.data.post(["notes"], null, payload) as NoteSummary;
+  await copyNoteTags(content.tagSourceNoteId, created.id);
   await writeNoteTaskMetadata(created.id, metadata);
 }
 

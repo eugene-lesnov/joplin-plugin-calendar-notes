@@ -33,10 +33,10 @@ Joplin **3.5** or newer.
 | Week starts on | Monday or Sunday |
 | Notes: notebook | Notebook path for new calendar notes, e.g. `Calendar notes`; missing notebooks are created automatically |
 | Notes: nested notebooks | Optional path inside the notes notebook, e.g. `{{year}}/{{month}}` |
-| Notes: new note template | Joplin note used as a body template for new notes, e.g. `Templates/Calendar note` |
+| Notes: new note template | Joplin note used as a body template for new notes, e.g. `Templates/Calendar note`; template tags are copied to created notes |
 | Tasks: notebook | Notebook path for new todo tasks, e.g. `Tasks`; missing notebooks are created automatically |
 | Tasks: nested notebooks | Optional path inside the tasks notebook, e.g. `{{year}}/{{month}}` |
-| Tasks: new task template | Joplin note used as a body template for new todo tasks, e.g. `Templates/Calendar task` |
+| Tasks: new task template | Joplin note used as a body template for new todo tasks, e.g. `Templates/Calendar task`; template tags are copied to created tasks |
 
 ## How notes are matched
 
@@ -44,7 +44,7 @@ Notes are matched only inside the configured notes notebook and its nested noteb
 
 ## Recurring tasks
 
-Recurring tasks are ordinary Joplin todo notes with plugin metadata stored in synced Joplin user data. Use the `↻` button in the calendar panel to choose daily, weekly, monthly, or yearly repetition for a task. When a repeated task is completed, the next one is created. If `Tasks: new task template` is configured and readable, the next task body is rendered from the current template with fresh placeholders such as `{{title}}`, `{{date}}`, and `{{time}}`; otherwise the previous task body is copied. If the task has a reminder, the next task keeps the same reminder offset from the task date, so reminders set before or after the task day stay intentional.
+Recurring tasks are ordinary Joplin todo notes with plugin metadata stored in synced Joplin user data. Use the `↻` button in the calendar panel to choose daily, weekly, monthly, or yearly repetition for a task. When a repeated task is completed, the next one is created. If `Tasks: new task template` is configured and readable, the next task body is rendered from the current template with fresh placeholders such as `{{title}}`, `{{date}}`, and `{{time}}`, and template tags are copied; otherwise the previous task body and tags are copied. If the task has a reminder, the next task keeps the same reminder offset from the task date, so reminders set before or after the task day stay intentional.
 
 ## License
 
