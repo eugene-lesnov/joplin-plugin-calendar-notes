@@ -44,7 +44,7 @@ Notes are matched only inside the configured notes notebook and its nested noteb
 
 ## Recurring tasks
 
-Recurring tasks are ordinary Joplin todo notes with plugin metadata stored in synced Joplin user data. Use the `↻` button in the calendar panel to choose daily, weekly, monthly, or yearly repetition for a task. When a repeated task is completed, the next one is created. If the task has a reminder, the next task keeps the same reminder offset from the task date, so reminders set before or after the task day stay intentional.
+Recurring tasks are ordinary Joplin todo notes with plugin metadata stored in synced Joplin user data. Use the `↻` button in the calendar panel to choose daily, weekly, monthly, or yearly repetition for a task. When a repeated task is completed, the next one is created. If `Tasks: new task template` is configured and readable, the next task body is rendered from the current template with fresh placeholders such as `{{title}}`, `{{date}}`, and `{{time}}`; otherwise the previous task body is copied. If the task has a reminder, the next task keeps the same reminder offset from the task date, so reminders set before or after the task day stay intentional.
 
 ## License
 

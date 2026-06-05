@@ -812,6 +812,26 @@ function replaceTaskDateInTitle(
   return `${nextIdentifier} - ${title}`;
 }
 
+async function renderRepeatedTaskBody(
+  previousBody: string | undefined,
+  nextDateId: string,
+  nextTitle: string,
+  settings: CalendarSettings,
+  createdAt: Date,
+): Promise<string> {
+  if (!settings.taskTemplatePath) {
+    return previousBody ?? "";
+  }
+
+  try {
+    const rawTemplate = await readNoteTemplateNote(settings.taskTemplatePath);
+    return renderNoteTemplate(rawTemplate, nextDateId, nextTitle, createdAt);
+  } catch (error) {
+    console.warn("Failed to read repeated task template. Copying previous body.", error);
+    return previousBody ?? "";
+  }
+}
+
 async function createNextRepeatedTask(
   task: NoteSummary,
   dateId: string,
@@ -850,11 +870,19 @@ async function createNextRepeatedTask(
     return;
   }
 
+  const createdAt = new Date();
   const dayStart = startOfLocalDayMs(nextDateId);
   const nextAlarm = shiftAlarmToDate(task.todo_due, dateId, nextDateId);
+  const body = await renderRepeatedTaskBody(
+    task.body,
+    nextDateId,
+    nextTitle,
+    settings,
+    createdAt,
+  );
   const payload: Record<string, unknown> = {
     title: nextTitle,
-    body: task.body ?? "",
+    body,
     parent_id: parentId,
     is_todo: 1,
     todo_completed: 0,
