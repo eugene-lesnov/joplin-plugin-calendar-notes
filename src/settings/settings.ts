@@ -21,10 +21,10 @@ import {
   SETTING_DAY_IDENTIFIER_FORMAT,
   SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_NOTEBOOK_NOTES_PATH,
+  SETTING_COMPLETED_TASKS_PATH,
   SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
   SETTING_NOTE_TEMPLATE_PATH,
   SETTING_TASKS_PATH,
-  SETTING_TASKS_PATH_PATTERN,
   SETTING_TASK_TEMPLATE_PATH,
   SETTING_WEEK_START,
 } from "../core/constants";
@@ -77,7 +77,7 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
     SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
     SETTING_NOTE_TEMPLATE_PATH,
     SETTING_TASKS_PATH,
-    SETTING_TASKS_PATH_PATTERN,
+    SETTING_COMPLETED_TASKS_PATH,
     SETTING_TASK_TEMPLATE_PATH,
   ]);
 
@@ -101,8 +101,9 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
       values[SETTING_TASKS_PATH],
       strings.defaultTasksPath,
     ),
-    tasksPathPattern: normalizeNotebookPathPattern(
-      values[SETTING_TASKS_PATH_PATTERN],
+    completedTasksPath: normalizeNotebookPath(
+      values[SETTING_COMPLETED_TASKS_PATH],
+      strings.defaultCompletedTasksPath,
     ),
     taskTemplatePath: normalizeTemplatePath(values[SETTING_TASK_TEMPLATE_PATH]),
   };
@@ -198,13 +199,13 @@ export async function registerSettings(): Promise<void> {
       description: strings.tasksPathDescription,
     },
 
-    [SETTING_TASKS_PATH_PATTERN]: {
-      value: DEFAULT_NOTEBOOK_PATH_PATTERN,
+    [SETTING_COMPLETED_TASKS_PATH]: {
+      value: strings.defaultCompletedTasksPath,
       type: SettingItemType.String,
       section: SETTINGS_SECTION,
       public: true,
-      label: strings.tasksPathPatternLabel,
-      description: strings.tasksPathPatternDescription,
+      label: strings.completedTasksPathLabel,
+      description: strings.completedTasksPathDescription,
     },
 
     [SETTING_TASK_TEMPLATE_PATH]: {

@@ -73,7 +73,7 @@ export type CalendarSettings = {
   notebookNotesPathPattern: string;
   noteTemplatePath: string;
   tasksPath: string;
-  tasksPathPattern: string;
+  completedTasksPath: string;
   taskTemplatePath: string;
 };
 

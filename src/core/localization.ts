@@ -17,6 +17,7 @@ export interface AppLocalization {
   weekStartDescription: string;
   defaultNotebookNotesPath: string;
   defaultTasksPath: string;
+  defaultCompletedTasksPath: string;
   notebookNotesPathLabel: string;
   notebookNotesPathDescription: string;
   notebookNotesPathPatternLabel: string;
@@ -25,8 +26,8 @@ export interface AppLocalization {
   noteTemplateDescription: string;
   tasksPathLabel: string;
   tasksPathDescription: string;
-  tasksPathPatternLabel: string;
-  tasksPathPatternDescription: string;
+  completedTasksPathLabel: string;
+  completedTasksPathDescription: string;
   taskTemplateLabel: string;
   taskTemplateDescription: string;
   toggleCalendarCommandLabel: string;
@@ -81,6 +82,7 @@ const defaultStrings: AppLocalization = {
   weekStartDescription: "First day of week in the calendar.",
   defaultNotebookNotesPath: "Calendar notes",
   defaultTasksPath: "Tasks",
+  defaultCompletedTasksPath: "Completed tasks",
   notebookNotesPathLabel: "Notes: notebook",
   notebookNotesPathDescription:
     "Where new calendar notes are created. If the notebook does not exist, it will be created.",
@@ -92,10 +94,10 @@ const defaultStrings: AppLocalization = {
     "Joplin note to use as the text template for new notes. Example: Templates/Calendar note. Available: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
   tasksPathLabel: "Tasks: notebook",
   tasksPathDescription:
-    "Where new tasks are created and existing calendar tasks are searched. If the notebook does not exist, it will be created.",
-  tasksPathPatternLabel: "Tasks: nested notebooks",
-  tasksPathPatternDescription:
-    "Optional nested notebooks for tasks. Example: {{year}}/{{month}}. Leave empty to create tasks directly in the tasks notebook.",
+    "Where new active tasks are created and searched. If the notebook does not exist, it will be created.",
+  completedTasksPathLabel: "Tasks: completed notebook",
+  completedTasksPathDescription:
+    "Where completed tasks are moved. If the notebook does not exist, it will be created.",
   taskTemplateLabel: "Tasks: new task template",
   taskTemplateDescription:
     "Joplin note to use as the text template for new tasks. Example: Templates/Calendar task. Available: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
@@ -153,6 +155,7 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     weekStartDescription: "Первый день недели в календаре.",
     defaultNotebookNotesPath: "Календарные заметки",
     defaultTasksPath: "Задачи",
+    defaultCompletedTasksPath: "Завершенные задачи",
     notebookNotesPathLabel: "Заметки: блокнот",
     notebookNotesPathDescription:
       "Куда создавать новые календарные заметки. Если блокнота нет, он будет создан.",
@@ -164,10 +167,10 @@ const localizations: Record<string, Partial<AppLocalization>> = {
       "Заметка Joplin, из которой брать текст для новых заметок. Пример: Шаблоны/Календарная заметка. Доступно: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",
     tasksPathLabel: "Задачи: блокнот",
     tasksPathDescription:
-      "Куда создавать новые задачи и где искать календарные задачи. Если блокнота нет, он будет создан.",
-    tasksPathPatternLabel: "Задачи: вложенные блокноты",
-    tasksPathPatternDescription:
-      "Необязательные вложенные блокноты для задач. Пример: {{year}}/{{month}}. Оставьте пустым, чтобы создавать задачи прямо в блокноте задач.",
+      "Куда создавать новые активные задачи и где их искать. Если блокнота нет, он будет создан.",
+    completedTasksPathLabel: "Задачи: блокнот завершенных",
+    completedTasksPathDescription:
+      "Куда переносить завершенные задачи. Если блокнота нет, он будет создан.",
     taskTemplateLabel: "Задачи: шаблон новой задачи",
     taskTemplateDescription:
       "Заметка Joplin, из которой брать текст для новых задач. Пример: Шаблоны/Календарная задача. Доступно: {{title}}, {{date}}, {{time}}, {{YYYY}}, {{MM}}, {{dd}}, {{date:dd.mm.YYYY}}.",

@@ -11,7 +11,7 @@ export const SETTING_NOTEBOOK_NOTES_PATH = "notebookNotesPath";
 export const SETTING_NOTEBOOK_NOTES_PATH_PATTERN = "notebookNotesPathPattern";
 export const SETTING_NOTE_TEMPLATE_PATH = "noteTemplatePath";
 export const SETTING_TASKS_PATH = "tasksPath";
-export const SETTING_TASKS_PATH_PATTERN = "tasksPathPattern";
+export const SETTING_COMPLETED_TASKS_PATH = "completedTasksPath";
 export const SETTING_TASK_TEMPLATE_PATH = "taskTemplatePath";
 
 export const DAY_IDENTIFIER_FORMAT_DOTS = "{{dd.mm.YYYY}}";

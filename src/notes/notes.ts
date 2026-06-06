@@ -475,6 +475,12 @@ async function getNotebookFolderIdForCreate(
   return notebook?.id ?? null;
 }
 
+async function getNotebookRootFolderIdForCreate(path: string): Promise<string | null> {
+  const notebook = await ensureNotebookPath(path);
+
+  return notebook?.id ?? null;
+}
+
 async function findNoteByExactTitleInFolders(
   folderIds: ReadonlySet<string>,
   title: string,
@@ -741,11 +747,7 @@ async function createCalendarTask(
   title: string,
   settings: CalendarSettings,
 ): Promise<NoteSummary | null> {
-  const parentId = await getNotebookFolderIdForCreate(
-    settings.tasksPath,
-    dateId,
-    settings.tasksPathPattern,
-  );
+  const parentId = await getNotebookRootFolderIdForCreate(settings.tasksPath);
 
   if (!parentId) {
     await joplin.views.dialogs.showMessageBox(
@@ -916,11 +918,7 @@ async function createNextRepeatedTask(
     return;
   }
 
-  const parentId = await getNotebookFolderIdForCreate(
-    settings.tasksPath,
-    nextDateId,
-    settings.tasksPathPattern,
-  );
+  const parentId = await getNotebookRootFolderIdForCreate(settings.tasksPath);
 
   if (!parentId) {
     await joplin.views.dialogs.showMessageBox(
@@ -1004,14 +1002,64 @@ async function findRepeatedTaskByDate(
 }
 
 
+async function getTaskCompletionFolderId(
+  completed: boolean,
+  settings: CalendarSettings,
+  showError: boolean,
+): Promise<string | null> {
+  const targetPath = completed ? settings.completedTasksPath : settings.tasksPath;
+  const parentId = await getNotebookRootFolderIdForCreate(targetPath);
+
+  if (parentId) {
+    return parentId;
+  }
+
+  if (showError) {
+    await joplin.views.dialogs.showMessageBox(
+      strings.createCalendarNoteNoNotebookError,
+    );
+  } else {
+    console.warn(`Failed to resolve task notebook: ${targetPath}`);
+  }
+
+  return null;
+}
+
+function resolveTaskDateId(task: NoteSummary, settings: CalendarSettings): string | null {
+  return resolveCalendarNoteDateIdInRange(
+    task.title,
+    new Date().getFullYear() - 10,
+    new Date().getFullYear() + 10,
+    settings,
+  );
+}
+
+async function createNextRepeatedTaskIfNeeded(
+  task: NoteSummary,
+  dateId: string,
+  settings: CalendarSettings,
+): Promise<void> {
+  const metadata = getTaskMetadata(task);
+
+  if (metadata.repeat) {
+    await createNextRepeatedTask(task, dateId, metadata, settings);
+  }
+}
+
 export async function setCalendarTaskCompleted(
   noteId: string,
   completed: boolean,
 ): Promise<void> {
   const task = await getNoteWithBody(noteId);
-  const metadata = getTaskMetadata(task);
+  const settings = await getCalendarSettings();
+  const parentId = await getTaskCompletionFolderId(completed, settings, true);
+
+  if (!parentId) {
+    return;
+  }
 
   await joplin.data.put(["notes", noteId], null, {
+    parent_id: parentId,
     todo_completed: completed ? Date.now() : 0,
   });
 
@@ -1019,20 +1067,48 @@ export async function setCalendarTaskCompleted(
     return;
   }
 
-  const settings = await getCalendarSettings();
-  const dateId = resolveCalendarNoteDateIdInRange(
-    task.title,
-    new Date().getFullYear() - 10,
-    new Date().getFullYear() + 10,
-    settings,
-  );
+  const dateId = resolveTaskDateId(task, settings);
 
   if (!dateId) {
     return;
   }
 
-  if (metadata.repeat) {
-    await createNextRepeatedTask(task, dateId, metadata, settings);
+  await createNextRepeatedTaskIfNeeded(task, dateId, settings);
+}
+
+export async function syncCalendarTaskCompletionLocation(noteId: string): Promise<void> {
+  const task = await getNoteWithBody(noteId);
+
+  if (isDeletedNote(task) || !isTodoNote(task)) {
+    return;
+  }
+
+  const settings = await getCalendarSettings();
+  const dateId = resolveTaskDateId(task, settings);
+
+  if (!dateId) {
+    return;
+  }
+
+  const completed = isTodoCompleted(task);
+  const parentId = await getTaskCompletionFolderId(completed, settings, false);
+
+  if (!parentId) {
+    return;
+  }
+
+  const shouldMoveTask = task.parent_id !== parentId;
+
+  if (!shouldMoveTask) {
+    return;
+  }
+
+  await joplin.data.put(["notes", noteId], null, {
+    parent_id: parentId,
+  });
+
+  if (completed) {
+    await createNextRepeatedTaskIfNeeded(task, dateId, settings);
   }
 }
 

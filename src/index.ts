@@ -5,10 +5,10 @@ import {
   SETTING_DAY_IDENTIFIER_FORMAT,
   SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_NOTEBOOK_NOTES_PATH,
+  SETTING_COMPLETED_TASKS_PATH,
   SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
   SETTING_NOTE_TEMPLATE_PATH,
   SETTING_TASKS_PATH,
-  SETTING_TASKS_PATH_PATTERN,
   SETTING_TASK_TEMPLATE_PATH,
   SETTING_WEEK_START,
 } from "./core/constants";
@@ -19,6 +19,7 @@ import {
   createCalendarTaskForDate,
   setCalendarTaskCompleted,
   setTaskRepeat,
+  syncCalendarTaskCompletionLocation,
 } from "./notes/notes";
 import {
   goToNextMonth,
@@ -56,7 +57,7 @@ const RENDER_AFFECTING_SETTINGS = [
   SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
   SETTING_NOTE_TEMPLATE_PATH,
   SETTING_TASKS_PATH,
-  SETTING_TASKS_PATH_PATTERN,
+  SETTING_COMPLETED_TASKS_PATH,
   SETTING_TASK_TEMPLATE_PATH,
 ];
 
@@ -122,6 +123,8 @@ async function handlePanelMessage(message: CalendarMessage): Promise<void> {
 }
 
 async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
+  await syncCalendarTaskCompletionLocation(event.id);
+
   if (await shouldRefreshCalendarForNoteChange(event.id, event.event)) {
     await scheduleCalendarRefresh();
   }
