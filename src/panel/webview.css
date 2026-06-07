@@ -284,23 +284,14 @@ button,
     min-height: 38px;
 }
 
-.agenda-root .section-title-action {
-    justify-content: space-between;
-    width: 100%;
-}
-
 .agenda-root .add-item-button {
     width: 36px;
     height: 36px;
     min-width: 36px;
     min-height: 36px;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
     font-size: 0;
     line-height: 1;
     padding: 0;
-    opacity: 0.75;
 }
 
 .agenda-root .add-item-button::before {
@@ -309,9 +300,13 @@ button,
     line-height: 1;
 }
 
-.agenda-root .add-item-button:hover {
-    background: var(--joplin-selected-color);
-    opacity: 1;
+.agenda-root .task-repeat-button {
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    justify-content: center;
+    font-size: 18px;
+    opacity: 0.75;
 }
 
 .selected-day,
@@ -349,6 +344,8 @@ button,
 }
 
 .section-title-action {
+    justify-content: space-between;
+    width: 100%;
     gap: 6px;
 }
 
@@ -419,10 +416,12 @@ button,
 }
 
 .task-repeat-button {
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
+    min-width: 30px;
     border: none;
-    border-radius: 999px;
+    border-radius: 6px;
     background: transparent;
     color: var(--joplin-color);
     cursor: pointer;
@@ -432,6 +431,14 @@ button,
 }
 
 .task-repeat-button.active {
+    opacity: 0.75;
+}
+
+.calendar-root .task-repeat-button {
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1.2;
+    padding: 3px 8px;
     opacity: 0.75;
 }
 
@@ -531,22 +538,26 @@ button,
 }
 
 .add-item-button {
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    border: 1px solid var(--joplin-divider-color);
-    border-radius: 4px;
-    background: var(--joplin-background-color);
+    min-width: 30px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
     color: var(--joplin-color);
     cursor: pointer;
     font-family: inherit;
     font-size: 12px;
     line-height: 1.2;
     padding: 3px 8px;
+    opacity: 0.75;
 }
 
 .add-item-button:hover {
     background: var(--joplin-selected-color);
+    opacity: 1;
 }
 
