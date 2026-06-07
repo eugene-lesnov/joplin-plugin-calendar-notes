@@ -50,6 +50,7 @@ export const NOTE_FIELDS = [
   "parent_id",
   "body",
   "deleted_time",
+  "created_time",
   "is_todo",
   "todo_completed",
   "todo_due",
@@ -501,7 +502,10 @@ async function getNotebookNotesTreeIds(settings: CalendarSettings): Promise<Set<
 }
 
 async function getTasksTreeIds(settings: CalendarSettings): Promise<Set<string>> {
-  return getNotebookTreeIds(settings.tasksPath);
+  const taskTreeIds = await getNotebookTreeIds(settings.tasksPath);
+  const completedTaskTreeIds = await getNotebookTreeIds(settings.completedTasksPath);
+
+  return new Set([...taskTreeIds, ...completedTaskTreeIds]);
 }
 
 function isTodoNote(note: NoteSummary): boolean {
@@ -541,6 +545,12 @@ function sortTasks(first: NoteSummary, second: NoteSummary): number {
 
   if (firstCompleted !== secondCompleted) {
     return firstCompleted ? 1 : -1;
+  }
+
+  const createdTimeComparison = (first.created_time ?? 0) - (second.created_time ?? 0);
+
+  if (createdTimeComparison !== 0) {
+    return createdTimeComparison;
   }
 
   return first.title.localeCompare(second.title);
@@ -660,9 +670,6 @@ export async function getExistingCalendarNoteMarkers(
     noteCountsByDate.set(dateId, notes.length);
   }
 
-  for (const [dateId, tasks] of tasksByDate) {
-    noteCountsByDate.set(dateId, (noteCountsByDate.get(dateId) ?? 0) + tasks.length);
-  }
 
   return {
     datesByNoteId,

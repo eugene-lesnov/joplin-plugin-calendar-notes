@@ -32,6 +32,7 @@ export type NoteSummary = {
   body?: string;
   metadata?: TaskMetadata;
   deleted_time?: number;
+  created_time?: number;
   is_todo?: number;
   todo_completed?: number;
   todo_due?: number;

@@ -1,5 +1,8 @@
 .calendar-root {
     --calendar-day-height: 34px;
+    --calendar-note-marker-color: #9ca3af;
+    --calendar-open-task-marker-color: var(--joplin-color-warn, #d97706);
+    --calendar-completed-task-marker-color: #22c55e;
 
     box-sizing: border-box;
     padding: 12px;
@@ -93,24 +96,41 @@
     outline-offset: -2px;
 }
 
-.has-note {
+.has-marker {
     font-weight: 700;
 }
 
-.dot,
+.day-markers {
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    display: flex;
+    gap: 4px;
+    transform: translateX(-50%);
+}
+
+.day-marker,
 .legend-dot {
     display: inline-block;
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: var(--joplin-color);
 }
 
-.dot {
-    position: absolute;
-    left: 50%;
-    bottom: 4px;
-    transform: translateX(-50%);
+.note-marker {
+    background: var(--calendar-note-marker-color);
+}
+
+.task-open {
+    background: var(--calendar-open-task-marker-color);
+}
+
+.task-done {
+    background: var(--calendar-completed-task-marker-color);
+}
+
+.legend-dot {
+    background: var(--joplin-color);
 }
 
 .legend {
@@ -150,6 +170,20 @@
 .day-section {
     display: flex;
     flex-direction: column;
+    gap: 6px;
+}
+
+.section-header,
+.section-title-action {
+    display: flex;
+    align-items: center;
+}
+
+.section-header {
+    gap: 8px;
+}
+
+.section-title-action {
     gap: 6px;
 }
 
@@ -303,19 +337,20 @@
     opacity: 1;
 }
 
-.create-note-button {
-    margin-top: 4px;
-    padding: 6px 8px;
+.add-item-button {
+    flex: 0 0 auto;
     border: 1px solid var(--joplin-divider-color);
-    border-radius: 6px;
+    border-radius: 4px;
     background: var(--joplin-background-color);
     color: var(--joplin-color);
     cursor: pointer;
     font-family: inherit;
-    font-size: inherit;
+    font-size: 12px;
+    line-height: 1.2;
+    padding: 3px 8px;
 }
 
-.create-note-button:hover {
+.add-item-button:hover {
     background: var(--joplin-selected-color);
 }
 

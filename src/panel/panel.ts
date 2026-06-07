@@ -120,12 +120,25 @@ function getTodayDateId(): string {
   );
 }
 
-function renderDayMarkerHtml(noteCount: number): string {
-  if (noteCount <= 0) {
+function getTaskMarkerClass(tasks: NoteSummary[]): string | null {
+  if (tasks.length <= 0) {
+    return null;
+  }
+
+  return tasks.every(isTaskCompleted) ? "task-done" : "task-open";
+}
+
+function renderDayMarkerHtml(noteCount: number, taskMarkerClass: string | null): string {
+  const markers = [
+    noteCount > 0 ? '<span class="day-marker note-marker"></span>' : "",
+    taskMarkerClass ? `<span class="day-marker ${taskMarkerClass}"></span>` : "",
+  ].filter(Boolean);
+
+  if (markers.length <= 0) {
     return "";
   }
 
-  return '<span class="dot"></span>';
+  return `<span class="day-markers">${markers.join("")}</span>`;
 }
 
 function buildDayButtonTitle(dayIdentifier: string): string {
@@ -293,11 +306,18 @@ function renderTasksSectionHtml(
 
   return `
     <section class="day-section day-tasks">
-      <div class="selected-day-header">${escapeHtml(strings.tasksSectionLabel)}</div>
+      <div class="section-header">
+        <div class="section-title-action">
+          <div class="selected-day-header">${escapeHtml(strings.tasksSectionLabel)}</div>
+          <button
+            class="add-item-button"
+            data-action="createTask"
+            data-date="${escapeHtml(dateId)}"
+            title="${escapeHtml(strings.createTaskButtonLabel)}"
+          >${escapeHtml(strings.createTaskButtonLabel)}</button>
+        </div>
+      </div>
       ${items}
-      <button class="create-note-button" data-action="createTask" data-date="${escapeHtml(dateId)}">
-        ${escapeHtml(strings.createTaskButtonLabel)}
-      </button>
     </section>
   `;
 }
@@ -321,24 +341,27 @@ function renderNotesSectionHtml(
 
   return `
     <section class="day-section day-notes">
-      <div class="selected-day-header">${escapeHtml(strings.notesSectionLabel)}</div>
+      <div class="section-header">
+        <div class="section-title-action">
+          <div class="selected-day-header">${escapeHtml(strings.notesSectionLabel)}</div>
+          <button
+            class="add-item-button"
+            data-action="createNote"
+            data-date="${escapeHtml(dateId)}"
+            title="${escapeHtml(strings.createNoteButtonLabel)}"
+          >${escapeHtml(strings.createNoteButtonLabel)}</button>
+        </div>
+      </div>
       ${items}
-      <button class="create-note-button" data-action="createNote" data-date="${escapeHtml(dateId)}">
-        ${escapeHtml(strings.createNoteButtonLabel)}
-      </button>
     </section>
   `;
 }
 
-function buildVisibleItemCountsByDate(): Map<string, number> {
+function buildVisibleNoteCountsByDate(): Map<string, number> {
   const counts = new Map<string, number>();
 
   for (const [date, notes] of visibleNotesByDate) {
     counts.set(date, notes.length);
-  }
-
-  for (const [date, tasks] of visibleTasksByDate) {
-    counts.set(date, (counts.get(date) ?? 0) + tasks.length);
   }
 
   return counts;
@@ -440,12 +463,14 @@ function renderCalendarHtml(
     const dayIdentifier = buildDayIdentifier(dateId, settings);
     const noteCount = noteCountsByDate.get(dateId) ?? 0;
     const hasNote = noteCount > 0;
+    const taskMarkerClass = getTaskMarkerClass(tasksByDate.get(dateId) ?? []);
+    const hasTask = Boolean(taskMarkerClass);
     const isToday = dateId === todayId;
     const isSelected = dateId === selectedDateId;
 
     const classes = [
       "day",
-      hasNote ? "has-note" : "",
+      hasNote || hasTask ? "has-marker" : "",
       isToday ? "today" : "",
       isSelected ? "selected" : "",
     ]
@@ -453,7 +478,7 @@ function renderCalendarHtml(
       .join(" ");
 
     const title = buildDayButtonTitle(dayIdentifier);
-    const markerHtml = renderDayMarkerHtml(noteCount);
+    const markerHtml = renderDayMarkerHtml(noteCount, taskMarkerClass);
 
     cells.push(`
 			<button
@@ -618,7 +643,7 @@ export async function toggleOverdueTasks(): Promise<void> {
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
-    buildVisibleItemCountsByDate(),
+    buildVisibleNoteCountsByDate(),
     visibleNotesByDate,
     visibleTasksByDate,
     visibleOverdueTasks,
@@ -683,7 +708,7 @@ export async function selectCalendarDate(dateId: string): Promise<void> {
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
-    buildVisibleItemCountsByDate(),
+    buildVisibleNoteCountsByDate(),
     visibleNotesByDate,
     visibleTasksByDate,
     visibleOverdueTasks,
