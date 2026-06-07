@@ -8,6 +8,7 @@
 	"author": "Eugene Lesnov",
 	"homepage_url": "https://github.com/eugene-lesnov/joplin-plugin-calendar-notes",
 	"repository_url": "https://github.com/eugene-lesnov/joplin-plugin-calendar-notes",
+	"platforms": ["desktop", "mobile"],
 	"keywords": [
 		"calendar",
 		"navigation"

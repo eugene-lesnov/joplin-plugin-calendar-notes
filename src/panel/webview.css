@@ -1,4 +1,25 @@
-.calendar-root {
+html,
+body {
+    background: var(--joplin-background-color);
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+[role="button"] {
+    touch-action: manipulation;
+    user-select: none;
+}
+
+[aria-disabled="true"] {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.calendar-root,
+.agenda-root {
     --calendar-day-height: 34px;
     --calendar-note-marker-color: #9ca3af;
     --calendar-open-task-marker-color: var(--joplin-color-warn, #d97706);
@@ -10,6 +31,82 @@
     color: var(--joplin-color);
     font-family: var(--joplin-font-family);
     font-size: var(--joplin-font-size);
+}
+
+.agenda-root {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.agenda-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.agenda-kicker {
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.75;
+}
+
+.agenda-date {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.agenda-nav {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 8px;
+}
+
+.week-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.week-strip-labels,
+.week-strip-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.week-strip-labels {
+    font-size: 11px;
+    opacity: 0.75;
+    text-align: center;
+}
+
+.week-strip-day {
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--joplin-divider-color);
+    border-radius: 6px;
+    background: var(--joplin-background-color);
+    color: var(--joplin-color);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.week-strip-day:hover {
+    background: var(--joplin-selected-color);
+}
+
+.week-strip-day.today {
+    outline: 2px solid var(--joplin-color);
+    outline-offset: -2px;
+}
+
+.week-strip-day.selected {
+    background: var(--joplin-selected-color);
+    outline: 2px solid var(--joplin-color);
+    outline-offset: -2px;
 }
 
 .calendar-header {
@@ -28,12 +125,19 @@
 
 .nav-button,
 .today-button,
-.day {
+.day,
+.agenda-day-button {
     border: 1px solid var(--joplin-divider-color);
     background: var(--joplin-background-color);
     color: var(--joplin-color);
     border-radius: 6px;
     cursor: pointer;
+}
+
+.agenda-day-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .nav-button {
@@ -81,7 +185,8 @@
 
 .day:not(.day-empty):hover,
 .nav-button:hover,
-.today-button:hover {
+.today-button:hover,
+.agenda-day-button:hover {
     background: var(--joplin-selected-color);
 }
 
@@ -147,6 +252,66 @@
     background: var(--joplin-selected-color);
     outline: 2px solid var(--joplin-color);
     outline-offset: -2px;
+}
+
+.agenda-root .selected-day-list {
+    max-height: none;
+}
+
+.agenda-root .selected-day,
+.agenda-root .overdue-tasks {
+    margin-top: 0;
+}
+
+.agenda-root .day-section,
+.agenda-root .overdue-tasks {
+    padding-top: 10px;
+    border-top: 1px solid var(--joplin-divider-color);
+}
+
+.agenda-root .day-task {
+    min-height: 36px;
+}
+
+.agenda-root .task-checkbox {
+    width: 20px;
+    height: 20px;
+}
+
+.agenda-root .task-title,
+.agenda-root .day-note,
+.agenda-root .agenda-day-button {
+    min-height: 38px;
+}
+
+.agenda-root .section-title-action {
+    justify-content: space-between;
+    width: 100%;
+}
+
+.agenda-root .add-item-button {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 0;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.75;
+}
+
+.agenda-root .add-item-button::before {
+    content: "+";
+    font-size: 22px;
+    line-height: 1;
+}
+
+.agenda-root .add-item-button:hover {
+    background: var(--joplin-selected-color);
+    opacity: 1;
 }
 
 .selected-day,
@@ -236,6 +401,7 @@
 }
 
 .task-title {
+    display: block;
     flex: 1 1 auto;
     min-width: 0;
     text-align: left;
@@ -253,6 +419,8 @@
 }
 
 .task-repeat-button {
+    display: inline-flex;
+    align-items: center;
     border: none;
     border-radius: 999px;
     background: transparent;
@@ -291,7 +459,29 @@
     text-decoration: line-through;
 }
 
+.optimistic-item {
+    opacity: 0.65;
+}
+
+.optimistic-checkbox {
+    box-sizing: border-box;
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    margin: 0 4px;
+    border: 1px solid var(--joplin-divider-color);
+    background: var(--joplin-background-color);
+}
+
+.agenda-root .optimistic-checkbox {
+    width: 20px;
+    height: 20px;
+}
+
 .day-note {
+    box-sizing: border-box;
+    display: block;
     width: 100%;
     text-align: left;
     padding: 6px 8px;
@@ -317,6 +507,9 @@
 }
 
 .overdue-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex: 0 0 auto;
     width: 24px;
     height: 24px;
@@ -338,6 +531,9 @@
 }
 
 .add-item-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex: 0 0 auto;
     border: 1px solid var(--joplin-divider-color);
     border-radius: 4px;

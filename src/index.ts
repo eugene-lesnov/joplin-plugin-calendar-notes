@@ -13,7 +13,9 @@ import {
   SETTING_WEEK_START,
 } from "./core/constants";
 import strings, { getLocales, setLocale } from "./core/localization";
+import { isMobilePlatform } from "./core/platform";
 import {
+  clearCalendarNoteCaches,
   clearTaskRepeat,
   createCalendarNoteForDate,
   createCalendarTaskForDate,
@@ -22,11 +24,16 @@ import {
   syncCalendarTaskCompletionLocation,
 } from "./notes/notes";
 import {
+  addCreatedCalendarNote,
+  addCreatedCalendarTask,
   goToNextMonth,
+  goToNextWeek,
   goToPrevMonth,
+  goToPrevWeek,
   goToToday,
   hasStaleVisibleCalendarNoteMarkers,
   isVisibleCalendarNote,
+  refreshVisibleCalendar,
   renderCalendar,
   scheduleCalendarRefresh,
   selectCalendarDate,
@@ -40,6 +47,7 @@ import type {
   CalendarMessage,
   NoteChangeEvent,
   NoteSelectionChangeEvent,
+  PanelHtmlMessage,
 } from "./core/types";
 
 const TOGGLE_COMMAND = "toggleCalendarNotes";
@@ -61,10 +69,13 @@ const RENDER_AFFECTING_SETTINGS = [
   SETTING_TASK_TEMPLATE_PATH,
 ];
 
-async function handlePanelMessage(message: CalendarMessage): Promise<void> {
+async function shouldOpenCreatedItem(): Promise<boolean> {
+  return !(await isMobilePlatform());
+}
+
+async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMessage | void> {
   if (message.name === "selectDate") {
-    await selectCalendarDate(message.date);
-    return;
+    return selectCalendarDate(message.date);
   }
 
   if (message.name === "openNote") {
@@ -73,57 +84,75 @@ async function handlePanelMessage(message: CalendarMessage): Promise<void> {
   }
 
   if (message.name === "createNote") {
-    await createCalendarNoteForDate(message.date);
-    await renderCalendar();
-    return;
+    const note = await createCalendarNoteForDate(
+      message.date,
+      undefined,
+      await shouldOpenCreatedItem(),
+    );
+
+    return addCreatedCalendarNote(message.date, note);
   }
 
   if (message.name === "createTask") {
-    await createCalendarTaskForDate(message.date);
-    await renderCalendar();
-    return;
+    const task = await createCalendarTaskForDate(
+      message.date,
+      undefined,
+      await shouldOpenCreatedItem(),
+    );
+
+    return addCreatedCalendarTask(message.date, task);
   }
 
   if (message.name === "toggleTask") {
     await setCalendarTaskCompleted(message.id, !message.completed);
-    await renderCalendar();
-    return;
+    return renderCalendar();
   }
 
   if (message.name === "setTaskRepeat") {
     await setTaskRepeat(message.id);
-    await renderCalendar();
-    return;
+    return renderCalendar();
   }
 
   if (message.name === "clearTaskRepeat") {
     await clearTaskRepeat(message.id);
-    await renderCalendar();
-    return;
+    return renderCalendar();
   }
 
   if (message.name === "toggleOverdueTasks") {
-    await toggleOverdueTasks();
-    return;
+    return toggleOverdueTasks();
+  }
+
+  if (message.name === "prevWeek") {
+    return goToPrevWeek();
+  }
+
+  if (message.name === "nextWeek") {
+    return goToNextWeek();
   }
 
   if (message.name === "prevMonth") {
-    await goToPrevMonth();
-    return;
+    return goToPrevMonth();
   }
 
   if (message.name === "nextMonth") {
-    await goToNextMonth();
-    return;
+    return goToNextMonth();
   }
 
   if (message.name === "today") {
-    await goToToday();
+    return goToToday();
+  }
+
+  if (message.name === "refresh") {
+    return refreshVisibleCalendar();
   }
 }
 
 async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
-  await syncCalendarTaskCompletionLocation(event.id);
+  try {
+    await syncCalendarTaskCompletionLocation(event.id);
+  } catch (error) {
+    console.warn("Failed to sync calendar task completion location.", error);
+  }
 
   if (await shouldRefreshCalendarForNoteChange(event.id, event.event)) {
     await scheduleCalendarRefresh();
@@ -198,6 +227,7 @@ joplin.plugins.register({
       const keys = event.keys ?? [];
 
       if (keys.some((key) => RENDER_AFFECTING_SETTINGS.includes(key))) {
+        clearCalendarNoteCaches();
         await renderCalendar();
       }
     });

@@ -6,13 +6,17 @@ import {
   escapeHtml,
   formatDateId,
   pad2,
+  parseDateId,
+  weekDateIds,
   weekOffset,
   weekdayLabels,
 } from "../core/dateUtils";
 import strings, { formatLocalizedString, getLocales } from "../core/localization";
+import { isMobilePlatform } from "../core/platform";
 import {
   NOTE_FIELDS,
   buildDayIdentifier,
+  getAgendaDataForDate,
   getExistingCalendarNoteMarkers,
   isCalendarNoteTitleForDate,
   isDeletedNote,
@@ -24,11 +28,13 @@ import type {
   CalendarSettings,
   CalendarTaskWithDate,
   NoteSummary,
+  PanelHtmlMessage,
   RepeatFrequency,
 } from "../core/types";
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
 const NOTE_CHANGE_DELETE_EVENT = 3;
+const PANEL_ROOT_ID = "calendar-notes-root";
 const SELECT_DATE_ACTION = "selectDate";
 
 let panelHandle: string;
@@ -42,9 +48,10 @@ let visibleOverdueTasks: CalendarTaskWithDate[] = [];
 let showAllOverdueTasks = false;
 let selectedDateId: string | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+let panelShellReady = false;
 
 export async function setupPanel(
-  onMessage: (message: CalendarMessage) => Promise<void>,
+  onMessage: (message: CalendarMessage) => Promise<PanelHtmlMessage | void>,
 ): Promise<void> {
   const now = new Date();
   currentYear = now.getFullYear();
@@ -55,9 +62,41 @@ export async function setupPanel(
 
   await joplin.views.panels.addScript(panelHandle, "./panel/webview.css");
   await joplin.views.panels.addScript(panelHandle, "./panel/webview.js");
-  await joplin.views.panels.setHtml(panelHandle, strings.loadingCalendar);
+  await joplin.views.panels.setHtml(
+    panelHandle,
+    renderPanelShell(strings.loadingCalendar, await isMobilePlatform()),
+  );
 
   await joplin.views.panels.onMessage(panelHandle, onMessage);
+}
+
+function renderPanelShell(contentHtml: string, isMobile: boolean): string {
+  const mobileAttribute = isMobile ? ' data-mobile="true"' : "";
+
+  return `<div id="${PANEL_ROOT_ID}"${mobileAttribute}>${contentHtml}</div>`;
+}
+
+function makePanelHtmlMessage(html: string): PanelHtmlMessage {
+  return {
+    name: "setPanelHtml",
+    html,
+  };
+}
+
+async function updatePanelHtml(html: string): Promise<PanelHtmlMessage> {
+  const message = makePanelHtmlMessage(html);
+
+  if (!panelShellReady) {
+    await joplin.views.panels.setHtml(
+      panelHandle,
+      renderPanelShell(html, await isMobilePlatform()),
+    );
+    panelShellReady = true;
+    return message;
+  }
+
+  joplin.views.panels.postMessage(panelHandle, message);
+  return message;
 }
 
 async function isPanelVisible(): Promise<boolean> {
@@ -118,6 +157,28 @@ function getTodayDateId(): string {
     today.getMonth(),
     today.getDate(),
   );
+}
+
+function setCurrentMonthFromDateId(dateId: string): void {
+  const date = parseDateId(dateId);
+
+  currentYear = date.year;
+  currentMonth = date.month;
+}
+
+function shiftDateId(dateId: string, dayOffset: number): string {
+  const date = parseDateId(dateId);
+  const shifted = new Date(date.year, date.month, date.day + dayOffset);
+
+  return formatDateId(
+    shifted.getFullYear(),
+    shifted.getMonth(),
+    shifted.getDate(),
+  );
+}
+
+function getSelectedOrTodayDateId(): string {
+  return selectedDateId ?? getTodayDateId();
 }
 
 function getTaskMarkerClass(tasks: NoteSummary[]): string | null {
@@ -216,25 +277,29 @@ function renderTaskRepeatHtml(task: NoteSummary): string {
   const repeat = task.metadata?.repeat;
 
   if (!repeat) {
-    return `<button
+    return `<span
+      role="button"
+      tabindex="0"
       class="task-repeat-button empty"
       data-action="setTaskRepeat"
       data-note-id="${escapeHtml(task.id)}"
       data-can-clear-repeat="false"
       title="${escapeHtml(strings.taskRepeatNoneLabel)}"
-    >↻</button>`;
+    >↻</span>`;
   }
 
   const label = getRepeatLabel(repeat.frequency);
   const title = `${formatLocalizedString(strings.taskRepeatMetaLabel, { repeat: label })}. ${strings.taskRepeatClearHint}`;
 
-  return `<button
+  return `<span
+    role="button"
+    tabindex="0"
     class="task-repeat-button active"
     data-action="setTaskRepeat"
     data-note-id="${escapeHtml(task.id)}"
     data-can-clear-repeat="true"
     title="${escapeHtml(title)}"
-  >↻ ${escapeHtml(label)}</button>`;
+  >↻ ${escapeHtml(label)}</span>`;
 }
 
 function renderTaskAlarmHtml(task: NoteSummary, completed: boolean, dateId: string): string {
@@ -276,12 +341,14 @@ function renderTaskItemHtml(
       title="${escapeHtml(task.title)}"
       ${completed ? "checked" : ""}
     />
-    <button
+    <span
+      role="button"
+      tabindex="0"
       class="task-title"
       data-action="openNote"
       data-note-id="${escapeHtml(task.id)}"
       title="${escapeHtml(task.title)}"
-    >${escapeHtml(visibleTitle)}</button>
+    >${escapeHtml(visibleTitle)}</span>
     ${repeatHtml}
     ${alarmHtml}
   </li>`;
@@ -309,12 +376,14 @@ function renderTasksSectionHtml(
       <div class="section-header">
         <div class="section-title-action">
           <div class="selected-day-header">${escapeHtml(strings.tasksSectionLabel)}</div>
-          <button
+          <span
+            role="button"
+            tabindex="0"
             class="add-item-button"
             data-action="createTask"
             data-date="${escapeHtml(dateId)}"
             title="${escapeHtml(strings.createTaskButtonLabel)}"
-          >${escapeHtml(strings.createTaskButtonLabel)}</button>
+          >${escapeHtml(strings.createTaskButtonLabel)}</span>
         </div>
       </div>
       ${items}
@@ -330,12 +399,14 @@ function renderNotesSectionHtml(
     ? ""
     : `<ul class="selected-day-list">${notes
         .map(
-          (note) => `<li><button
+          (note) => `<li><span
+            role="button"
+            tabindex="0"
             class="day-note"
             data-action="openNote"
             data-note-id="${escapeHtml(note.id)}"
             title="${escapeHtml(note.title)}"
-          >${escapeHtml(note.title)}</button></li>`,
+          >${escapeHtml(note.title)}</span></li>`,
         )
         .join("")}</ul>`;
 
@@ -344,12 +415,14 @@ function renderNotesSectionHtml(
       <div class="section-header">
         <div class="section-title-action">
           <div class="selected-day-header">${escapeHtml(strings.notesSectionLabel)}</div>
-          <button
+          <span
+            role="button"
+            tabindex="0"
             class="add-item-button"
             data-action="createNote"
             data-date="${escapeHtml(dateId)}"
             title="${escapeHtml(strings.createNoteButtonLabel)}"
-          >${escapeHtml(strings.createNoteButtonLabel)}</button>
+          >${escapeHtml(strings.createNoteButtonLabel)}</span>
         </div>
       </div>
       ${items}
@@ -365,6 +438,41 @@ function buildVisibleNoteCountsByDate(): Map<string, number> {
   }
 
   return counts;
+}
+
+async function renderVisiblePanel(): Promise<PanelHtmlMessage> {
+  const settings = await getCalendarSettings();
+  const isMobile = await isMobilePlatform();
+
+  const html = isMobile && selectedDateId
+    ? renderAgendaHtml(
+        selectedDateId,
+        visibleTasksByDate.get(selectedDateId) ?? [],
+        visibleNotesByDate.get(selectedDateId) ?? [],
+        visibleOverdueTasks,
+        settings,
+      )
+    : renderCalendarHtml(
+        currentYear,
+        currentMonth,
+        buildVisibleNoteCountsByDate(),
+        visibleNotesByDate,
+        visibleTasksByDate,
+        visibleOverdueTasks,
+        settings,
+      );
+
+  return updatePanelHtml(html);
+}
+
+function addVisibleCalendarItem(
+  dateId: string,
+  note: NoteSummary,
+  target: Map<string, NoteSummary[]>,
+): void {
+  target.set(dateId, [...(target.get(dateId) ?? []), note]);
+  visibleCalendarNoteIds.add(note.id);
+  visibleCalendarNoteDatesById.set(note.id, dateId);
 }
 
 function formatOverdueDatePrefix(dateId: string): string {
@@ -391,7 +499,7 @@ function renderOverdueTasksSectionHtml(
     <section class="overdue-tasks day-section">
       <div class="overdue-summary">
         <div class="selected-day-header overdue-header">⚠ ${escapeHtml(heading)}</div>
-        <button class="overdue-toggle" data-action="toggleOverdueTasks">${escapeHtml(toggleLabel)}</button>
+        <span role="button" tabindex="0" class="overdue-toggle" data-action="toggleOverdueTasks">${escapeHtml(toggleLabel)}</span>
       </div>
       ${showAllOverdueTasks
         ? `<ul class="selected-day-list overdue-task-list">
@@ -424,6 +532,74 @@ function renderSelectedDaySectionHtml(
   return `
     <div class="selected-day">
       <div class="selected-day-title">${escapeHtml(title)}</div>
+      ${renderTasksSectionHtml(dateId, tasks, settings)}
+      ${renderNotesSectionHtml(dateId, notes)}
+    </div>
+  `;
+}
+
+function renderWeekStripHtml(
+  selectedDate: string,
+  settings: CalendarSettings,
+): string {
+  const todayId = getTodayDateId();
+  const labelsHtml = weekdayLabels(settings.weekStart)
+    .map((label) => `<div>${escapeHtml(label)}</div>`)
+    .join("");
+
+  const daysHtml = weekDateIds(selectedDate, settings.weekStart)
+    .map((dateId) => {
+      const classes = [
+        "week-strip-day",
+        dateId === todayId ? "today" : "",
+        dateId === selectedDate ? "selected" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      return `<button
+        class="${classes}"
+        data-action="${SELECT_DATE_ACTION}"
+        data-date="${escapeHtml(dateId)}"
+      >${parseDateId(dateId).day}</button>`;
+    })
+    .join("");
+
+  return `
+    <div class="week-strip">
+      <div class="week-strip-labels">${labelsHtml}</div>
+      <div class="week-strip-days">${daysHtml}</div>
+    </div>
+  `;
+}
+
+function renderAgendaHtml(
+  dateId: string,
+  tasks: readonly NoteSummary[],
+  notes: readonly NoteSummary[],
+  overdueTasks: readonly CalendarTaskWithDate[],
+  settings: CalendarSettings,
+): string {
+  const isToday = dateId === getTodayDateId();
+  const kicker = isToday ? strings.agendaTodayLabel : formatMonthLabel(currentYear, currentMonth);
+  const dateLabel = buildDayIdentifier(dateId, settings);
+
+  return `
+    <div class="agenda-root">
+      <div class="agenda-header">
+        <div class="agenda-kicker">${escapeHtml(kicker)}</div>
+        <div class="agenda-date">${escapeHtml(dateLabel)}</div>
+      </div>
+
+      <div class="agenda-nav">
+        <span role="button" tabindex="0" class="agenda-day-button" data-action="prevWeek" title="${escapeHtml(strings.previousWeekTitle)}">‹</span>
+        <span role="button" tabindex="0" class="agenda-day-button" data-action="today">${escapeHtml(strings.todayButtonLabel)}</span>
+        <span role="button" tabindex="0" class="agenda-day-button" data-action="nextWeek" title="${escapeHtml(strings.nextWeekTitle)}">›</span>
+      </div>
+
+      ${renderWeekStripHtml(dateId, settings)}
+
+      ${renderOverdueTasksSectionHtml(overdueTasks, settings)}
       ${renderTasksSectionHtml(dateId, tasks, settings)}
       ${renderNotesSectionHtml(dateId, notes)}
     </div>
@@ -529,20 +705,54 @@ function renderCalendarHtml(
 	`;
 }
 
-export async function renderCalendar(): Promise<void> {
-  const settings = await getCalendarSettings();
-
+async function loadVisibleMonthMarkers(settings: CalendarSettings) {
   const existingMarkers = await getExistingCalendarNoteMarkers(
     currentYear,
     currentMonth,
     settings,
   );
+
   visibleCalendarNoteIds = new Set(existingMarkers.datesByNoteId.keys());
   visibleCalendarNoteDatesById = new Map(existingMarkers.datesByNoteId);
   visibleNotesByDate = existingMarkers.notesByDate;
   visibleTasksByDate = existingMarkers.tasksByDate;
   visibleOverdueTasks = existingMarkers.overdueTasks;
 
+  return existingMarkers;
+}
+
+async function renderMobileAgenda(settings: CalendarSettings): Promise<PanelHtmlMessage> {
+  selectedDateId = getSelectedOrTodayDateId();
+  setCurrentMonthFromDateId(selectedDateId);
+
+  const agendaData = await getAgendaDataForDate(selectedDateId, settings);
+  visibleCalendarNoteIds = new Set([
+    ...agendaData.notes.map((note) => note.id),
+    ...agendaData.tasks.map((task) => task.id),
+    ...agendaData.overdueTasks.map(({ task }) => task.id),
+  ]);
+  visibleCalendarNoteDatesById = new Map([
+    ...agendaData.notes.map((note): [string, string] => [note.id, selectedDateId]),
+    ...agendaData.tasks.map((task): [string, string] => [task.id, selectedDateId]),
+    ...agendaData.overdueTasks.map(({ task, dateId }): [string, string] => [task.id, dateId]),
+  ]);
+  visibleNotesByDate = new Map([[selectedDateId, agendaData.notes]]);
+  visibleTasksByDate = new Map([[selectedDateId, agendaData.tasks]]);
+  visibleOverdueTasks = agendaData.overdueTasks;
+
+  const html = renderAgendaHtml(
+    selectedDateId,
+    agendaData.tasks,
+    agendaData.notes,
+    agendaData.overdueTasks,
+    settings,
+  );
+
+  return updatePanelHtml(html);
+}
+
+async function renderDesktopCalendar(settings: CalendarSettings): Promise<PanelHtmlMessage> {
+  const existingMarkers = await loadVisibleMonthMarkers(settings);
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
@@ -553,7 +763,25 @@ export async function renderCalendar(): Promise<void> {
     settings,
   );
 
-  await joplin.views.panels.setHtml(panelHandle, html);
+  return updatePanelHtml(html);
+}
+
+export async function renderCalendar(): Promise<PanelHtmlMessage> {
+  const settings = await getCalendarSettings();
+
+  if (await isMobilePlatform()) {
+    return renderMobileAgenda(settings);
+  }
+
+  return renderDesktopCalendar(settings);
+}
+
+export async function refreshVisibleCalendar(): Promise<PanelHtmlMessage | void> {
+  if (!(await isPanelVisible())) {
+    return;
+  }
+
+  return renderCalendar();
 }
 
 export async function scheduleCalendarRefresh(): Promise<void> {
@@ -635,22 +863,34 @@ export async function showCalendarPanel(): Promise<void> {
   await joplin.views.panels.show(panelHandle, true);
 }
 
-export async function toggleOverdueTasks(): Promise<void> {
-  const settings = await getCalendarSettings();
+export async function addCreatedCalendarNote(
+  dateId: string,
+  note: NoteSummary | null,
+): Promise<PanelHtmlMessage> {
+  if (!note) {
+    return renderVisiblePanel();
+  }
 
+  addVisibleCalendarItem(dateId, note, visibleNotesByDate);
+  return renderVisiblePanel();
+}
+
+export async function addCreatedCalendarTask(
+  dateId: string,
+  task: NoteSummary | null,
+): Promise<PanelHtmlMessage> {
+  if (!task) {
+    return renderVisiblePanel();
+  }
+
+  addVisibleCalendarItem(dateId, task, visibleTasksByDate);
+  return renderVisiblePanel();
+}
+
+export async function toggleOverdueTasks(): Promise<PanelHtmlMessage> {
   showAllOverdueTasks = !showAllOverdueTasks;
 
-  const html = renderCalendarHtml(
-    currentYear,
-    currentMonth,
-    buildVisibleNoteCountsByDate(),
-    visibleNotesByDate,
-    visibleTasksByDate,
-    visibleOverdueTasks,
-    settings,
-  );
-
-  await joplin.views.panels.setHtml(panelHandle, html);
+  return renderVisiblePanel();
 }
 
 export async function toggleCalendarPanel(): Promise<void> {
@@ -664,17 +904,31 @@ export async function toggleCalendarPanel(): Promise<void> {
   await showCalendarPanel();
 }
 
-export async function goToToday(): Promise<void> {
+export async function goToToday(): Promise<PanelHtmlMessage> {
   const today = new Date();
 
   currentYear = today.getFullYear();
   currentMonth = today.getMonth();
   selectedDateId = getTodayDateId();
 
-  await renderCalendar();
+  return renderCalendar();
 }
 
-export async function goToPrevMonth(): Promise<void> {
+export async function goToPrevWeek(): Promise<PanelHtmlMessage> {
+  selectedDateId = shiftDateId(getSelectedOrTodayDateId(), -7);
+  setCurrentMonthFromDateId(selectedDateId);
+
+  return renderCalendar();
+}
+
+export async function goToNextWeek(): Promise<PanelHtmlMessage> {
+  selectedDateId = shiftDateId(getSelectedOrTodayDateId(), 7);
+  setCurrentMonthFromDateId(selectedDateId);
+
+  return renderCalendar();
+}
+
+export async function goToPrevMonth(): Promise<PanelHtmlMessage> {
   currentMonth -= 1;
 
   if (currentMonth < 0) {
@@ -684,10 +938,10 @@ export async function goToPrevMonth(): Promise<void> {
 
   selectedDateId = null;
 
-  await renderCalendar();
+  return renderCalendar();
 }
 
-export async function goToNextMonth(): Promise<void> {
+export async function goToNextMonth(): Promise<PanelHtmlMessage> {
   currentMonth += 1;
 
   if (currentMonth > 11) {
@@ -697,10 +951,17 @@ export async function goToNextMonth(): Promise<void> {
 
   selectedDateId = null;
 
-  await renderCalendar();
+  return renderCalendar();
 }
 
-export async function selectCalendarDate(dateId: string): Promise<void> {
+export async function selectCalendarDate(dateId: string): Promise<PanelHtmlMessage> {
+  if (await isMobilePlatform()) {
+    selectedDateId = dateId;
+    setCurrentMonthFromDateId(selectedDateId);
+
+    return renderCalendar();
+  }
+
   const settings = await getCalendarSettings();
 
   selectedDateId = dateId === selectedDateId ? null : dateId;
@@ -715,5 +976,5 @@ export async function selectCalendarDate(dateId: string): Promise<void> {
     settings,
   );
 
-  await joplin.views.panels.setHtml(panelHandle, html);
+  return updatePanelHtml(html);
 }

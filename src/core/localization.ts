@@ -35,6 +35,9 @@ export interface AppLocalization {
   createDateNoteTitle: string;
   previousMonthTitle: string;
   nextMonthTitle: string;
+  previousWeekTitle: string;
+  nextWeekTitle: string;
+  agendaTodayLabel: string;
   todayButtonLabel: string;
   overdueTasksLabel: string;
   showAllOverdueTasksLabel: string;
@@ -106,6 +109,9 @@ const defaultStrings: AppLocalization = {
   createDateNoteTitle: "Select notes for \"{{title}}\"",
   previousMonthTitle: "Previous month",
   nextMonthTitle: "Next month",
+  previousWeekTitle: "Previous week",
+  nextWeekTitle: "Next week",
+  agendaTodayLabel: "Today",
   todayButtonLabel: "Today",
   overdueTasksLabel: "Overdue tasks: {{count}}",
   showAllOverdueTasksLabel: "Show all",
@@ -179,6 +185,9 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     createDateNoteTitle: "Показать заметки за \"{{title}}\"",
     previousMonthTitle: "Предыдущий месяц",
     nextMonthTitle: "Следующий месяц",
+    previousWeekTitle: "Предыдущая неделя",
+    nextWeekTitle: "Следующая неделя",
+    agendaTodayLabel: "Сегодня",
     todayButtonLabel: "Сегодня",
     overdueTasksLabel: "Просроченные задачи: {{count}}",
     showAllOverdueTasksLabel: "Показать все",

@@ -82,16 +82,15 @@ function findChildFolder(
   );
 }
 
-export async function resolveNotebookPath(
+function resolveNotebookPathFromFolders(
+  folders: FolderSummary[],
   path: string,
-): Promise<FolderSummary | null> {
+): FolderSummary | null {
   const segments = splitNotebookPath(path);
 
   if (segments.length === 0) {
     return null;
   }
-
-  const folders = await getAllFolders();
 
   let parentId = "";
   let current: FolderSummary | null = null;
@@ -109,14 +108,20 @@ export async function resolveNotebookPath(
   return current;
 }
 
+export async function resolveNotebookPath(
+  path: string,
+): Promise<FolderSummary | null> {
+  return resolveNotebookPathFromFolders(await getAllFolders(), path);
+}
+
 export async function getNotebookTreeIds(path: string): Promise<Set<string>> {
-  const rootFolder = await resolveNotebookPath(path);
+  const folders = await getAllFolders();
+  const rootFolder = resolveNotebookPathFromFolders(folders, path);
 
   if (!rootFolder) {
     return new Set();
   }
 
-  const folders = await getAllFolders();
   const ids = new Set<string>([rootFolder.id]);
 
   collectDescendantFolderIds(folders, rootFolder.id, ids);

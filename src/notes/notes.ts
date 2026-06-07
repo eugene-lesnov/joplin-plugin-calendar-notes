@@ -35,6 +35,7 @@ import {
 } from "./notebooks";
 import { getCalendarSettings } from "../settings/settings";
 import type {
+  AgendaDayData,
   CalendarSettings,
   CalendarTaskWithDate,
   ExistingCalendarNoteMarkers,
@@ -67,6 +68,17 @@ const REPEAT_NONE_VALUE = "none";
 const REPEAT_FREQUENCIES: RepeatFrequency[] = ["daily", "weekly", "monthly", "yearly"];
 
 let repeatDialogHandle: string | null = null;
+const createFolderIdCache = new Map<string, string | null>();
+const rootFolderIdCache = new Map<string, string | null>();
+const treeIdsByPath = new Map<string, Set<string>>();
+const templateSourceCache = new Map<string, NoteTemplateSource>();
+
+export function clearCalendarNoteCaches(): void {
+  createFolderIdCache.clear();
+  rootFolderIdCache.clear();
+  treeIdsByPath.clear();
+  templateSourceCache.clear();
+}
 
 export function buildDayIdentifier(
   dateId: string,
@@ -255,6 +267,16 @@ async function withTaskMetadata(note: NoteSummary): Promise<NoteSummary> {
   };
 }
 
+async function attachTaskMetadata(tasks: NoteSummary[]): Promise<void> {
+  const metadataList = await Promise.all(
+    tasks.map((task) => readNoteTaskMetadata(task.id)),
+  );
+
+  tasks.forEach((task, index) => {
+    task.metadata = metadataList[index];
+  });
+}
+
 async function getNoteWithBody(noteId: string): Promise<NoteSummary> {
   const note = (await joplin.data.get(["notes", noteId], {
     fields: NOTE_FIELDS,
@@ -299,16 +321,25 @@ async function readNoteTemplateSource(templatePath: string): Promise<NoteTemplat
     return { body: "", noteId: null };
   }
 
+  const cached = templateSourceCache.get(templatePath);
+
+  if (cached) {
+    return cached;
+  }
+
   const templateNote = await findNoteByJoplinPath(templatePath);
 
   if (!templateNote) {
     throw new Error(`Template note not found by path: ${templatePath}`);
   }
 
-  return {
+  const source = {
     body: await getNoteBody(templateNote.id),
     noteId: templateNote.id,
   };
+
+  templateSourceCache.set(templatePath, source);
+  return source;
 }
 
 async function copyNoteTags(sourceNoteId: string | null, targetNoteId: string): Promise<void> {
@@ -464,22 +495,59 @@ function buildNotebookFolderPath(rootPath: string, dateId: string, pattern: stri
   ].join("/")).join("/");
 }
 
+function addFolderToCachedTree(path: string, folderId: string | null): void {
+  const cached = treeIdsByPath.get(path);
+
+  if (cached && folderId) {
+    cached.add(folderId);
+  }
+}
+
+async function getCachedTreeIds(path: string): Promise<Set<string>> {
+  const cached = treeIdsByPath.get(path);
+
+  if (cached) {
+    return cached;
+  }
+
+  const treeIds = await getNotebookTreeIds(path);
+  treeIdsByPath.set(path, treeIds);
+
+  return treeIds;
+}
+
 async function getNotebookFolderIdForCreate(
   rootPath: string,
   dateId: string,
   pattern: string,
 ): Promise<string | null> {
-  const notebook = await ensureNotebookPath(
-    buildNotebookFolderPath(rootPath, dateId, pattern),
-  );
+  const path = buildNotebookFolderPath(rootPath, dateId, pattern);
 
-  return notebook?.id ?? null;
+  if (createFolderIdCache.has(path)) {
+    const folderId = createFolderIdCache.get(path) ?? null;
+    addFolderToCachedTree(rootPath, folderId);
+    return folderId;
+  }
+
+  const notebook = await ensureNotebookPath(path);
+  const folderId = notebook?.id ?? null;
+  createFolderIdCache.set(path, folderId);
+  addFolderToCachedTree(rootPath, folderId);
+
+  return folderId;
 }
 
 async function getNotebookRootFolderIdForCreate(path: string): Promise<string | null> {
-  const notebook = await ensureNotebookPath(path);
+  if (rootFolderIdCache.has(path)) {
+    return rootFolderIdCache.get(path) ?? null;
+  }
 
-  return notebook?.id ?? null;
+  const notebook = await ensureNotebookPath(path);
+  const folderId = notebook?.id ?? null;
+  rootFolderIdCache.set(path, folderId);
+  addFolderToCachedTree(path, folderId);
+
+  return folderId;
 }
 
 async function findNoteByExactTitleInFolders(
@@ -498,12 +566,12 @@ async function findNoteByExactTitleInFolders(
 }
 
 async function getNotebookNotesTreeIds(settings: CalendarSettings): Promise<Set<string>> {
-  return getNotebookTreeIds(settings.notebookNotesPath);
+  return getCachedTreeIds(settings.notebookNotesPath);
 }
 
 async function getTasksTreeIds(settings: CalendarSettings): Promise<Set<string>> {
-  const taskTreeIds = await getNotebookTreeIds(settings.tasksPath);
-  const completedTaskTreeIds = await getNotebookTreeIds(settings.completedTasksPath);
+  const taskTreeIds = await getCachedTreeIds(settings.tasksPath);
+  const completedTaskTreeIds = await getCachedTreeIds(settings.completedTasksPath);
 
   return new Set([...taskTreeIds, ...completedTaskTreeIds]);
 }
@@ -583,6 +651,78 @@ async function scanFolderNotes(
   }
 }
 
+export async function getAgendaDataForDate(
+  dateId: string,
+  settings: CalendarSettings,
+): Promise<AgendaDayData> {
+  const notes: NoteSummary[] = [];
+  const tasks: NoteSummary[] = [];
+  const overdueTasks: CalendarTaskWithDate[] = [];
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const todayId = formatDateId(currentYear, today.getMonth(), today.getDate());
+
+  const notesFolderIds = await getNotebookNotesTreeIds(settings);
+  const tasksFolderIds = await getTasksTreeIds(settings);
+
+  for (const folderId of notesFolderIds) {
+    await scanFolderNotes(folderId, (note) => {
+      if (isDeletedNote(note) || isTodoNote(note)) {
+        return;
+      }
+
+      if (isCalendarNoteTitleForDate(note.title, dateId, settings)) {
+        notes.push(note);
+      }
+    });
+  }
+
+  const tasksWithMetadata = new Set<NoteSummary>();
+
+  for (const folderId of tasksFolderIds) {
+    await scanFolderNotes(folderId, (note) => {
+      if (isDeletedNote(note) || !isTodoNote(note)) {
+        return;
+      }
+
+      if (isCalendarNoteTitleForDate(note.title, dateId, settings)) {
+        tasks.push(note);
+        tasksWithMetadata.add(note);
+      }
+
+      const overdueDateId = !isTodoCompleted(note)
+        ? resolveCalendarNoteDateIdInRange(note.title, currentYear - 10, currentYear, settings)
+        : null;
+
+      if (overdueDateId && overdueDateId < todayId) {
+        overdueTasks.push({ task: note, dateId: overdueDateId });
+        tasksWithMetadata.add(note);
+      }
+    });
+  }
+
+  await attachTaskMetadata([...tasksWithMetadata]);
+
+  notes.sort((first, second) => first.title.localeCompare(second.title));
+  tasks.sort(sortTasks);
+  overdueTasks.sort((first, second) => {
+    const dateComparison = first.dateId.localeCompare(second.dateId);
+
+    if (dateComparison !== 0) {
+      return dateComparison;
+    }
+
+    return first.task.title.localeCompare(second.task.title);
+  });
+
+  return {
+    dateId,
+    notes,
+    tasks,
+    overdueTasks,
+  };
+}
+
 export async function getExistingCalendarNoteMarkers(
   year: number,
   month: number,
@@ -619,13 +759,14 @@ export async function getExistingCalendarNoteMarkers(
     });
   }
 
+  const tasksWithMetadata = new Set<NoteSummary>();
+
   for (const folderId of tasksFolderIds) {
-    await scanFolderNotes(folderId, async (rawNote) => {
-      if (isDeletedNote(rawNote) || !isTodoNote(rawNote)) {
+    await scanFolderNotes(folderId, (note) => {
+      if (isDeletedNote(note) || !isTodoNote(note)) {
         return;
       }
 
-      const note = await withTaskMetadata(rawNote);
       const dateId = resolveCalendarNoteDateId(
         note.title,
         year,
@@ -639,13 +780,17 @@ export async function getExistingCalendarNoteMarkers(
       if (dateId) {
         datesByNoteId.set(note.id, dateId);
         appendItemForDate(tasksByDate, dateId, note);
+        tasksWithMetadata.add(note);
       }
 
       if (overdueDateId && overdueDateId < todayId) {
         overdueTasks.push({ task: note, dateId: overdueDateId });
+        tasksWithMetadata.add(note);
       }
     });
   }
+
+  await attachTaskMetadata([...tasksWithMetadata]);
 
   for (const notes of notesByDate.values()) {
     notes.sort((first, second) => first.title.localeCompare(second.title));
@@ -798,24 +943,27 @@ async function createCalendarTask(
 export async function createCalendarNoteForDate(
   dateId: string,
   settings?: CalendarSettings,
-): Promise<void> {
+  openAfterCreate = true,
+): Promise<NoteSummary | null> {
   const effectiveSettings = settings ?? (await getCalendarSettings());
-
   const createdAt = new Date();
   const baseTitle = renderNoteTitle(dateId, effectiveSettings, createdAt);
   const noteFolderIds = await getNotebookNotesTreeIds(effectiveSettings);
   const title = await makeUniqueNoteTitle(baseTitle, noteFolderIds);
   const created = await createCalendarNote(dateId, title, effectiveSettings, createdAt);
 
-  if (created) {
+  if (created && openAfterCreate) {
     await joplin.commands.execute("openNote", created.id);
   }
+
+  return created;
 }
 
 export async function createCalendarTaskForDate(
   dateId: string,
   settings?: CalendarSettings,
-): Promise<void> {
+  openAfterCreate = true,
+): Promise<NoteSummary | null> {
   const effectiveSettings = settings ?? (await getCalendarSettings());
   const dayIdentifier = buildDayIdentifier(dateId, effectiveSettings);
   const taskFolderIds = await getTasksTreeIds(effectiveSettings);
@@ -823,9 +971,11 @@ export async function createCalendarTaskForDate(
   const title = await makeUniqueNoteTitle(baseTitle, taskFolderIds);
   const created = await createCalendarTask(dateId, title, effectiveSettings);
 
-  if (created) {
+  if (created && openAfterCreate) {
     await joplin.commands.execute("openNote", created.id);
   }
+
+  return created;
 }
 
 function getTodayDateId(): string {
