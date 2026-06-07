@@ -2,13 +2,16 @@
 	"manifest_version": 1,
 	"id": "com.github.eugenelesnov.CalendarNotes",
 	"app_min_version": "3.5",
-	"version": "2.4.1",
+	"version": "2.5.0",
 	"name": "Calendar Notes",
 	"description": "Create notes and tasks for any day in the calendar.",
 	"author": "Eugene Lesnov",
 	"homepage_url": "https://github.com/eugene-lesnov/joplin-plugin-calendar-notes",
 	"repository_url": "https://github.com/eugene-lesnov/joplin-plugin-calendar-notes",
-	"platforms": ["desktop", "mobile"],
+	"platforms": [
+		"desktop",
+		"mobile"
+	],
 	"keywords": [
 		"calendar",
 		"navigation"
