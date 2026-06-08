@@ -71,6 +71,7 @@ const createFolderIdCache = new Map<string, string | null>();
 const rootFolderIdCache = new Map<string, string | null>();
 const treeIdsByPath = new Map<string, Set<string>>();
 const templateSourceCache = new Map<string, NoteTemplateSource>();
+const processingTaskCompletionNoteIds = new Set<string>();
 
 export function clearCalendarNoteCaches(): void {
   createFolderIdCache.clear();
@@ -1130,70 +1131,111 @@ async function createNextRepeatedTaskIfNeeded(
   }
 }
 
-export async function setCalendarTaskCompleted(
+async function withTaskCompletionProcessingLock(
   noteId: string,
-  completed: boolean,
+  operation: () => Promise<void>,
 ): Promise<void> {
-  const task = await getNoteWithBody(noteId);
-  const settings = await getCalendarSettings();
-  const parentId = await getTaskCompletionFolderId(completed, settings, true);
-
-  if (!parentId) {
+  if (processingTaskCompletionNoteIds.has(noteId)) {
     return;
   }
 
-  await joplin.data.put(["notes", noteId], null, {
-    parent_id: parentId,
-    todo_completed: completed ? Date.now() : 0,
-  });
+  processingTaskCompletionNoteIds.add(noteId);
 
-  if (!completed) {
-    return;
+  try {
+    await operation();
+  } finally {
+    processingTaskCompletionNoteIds.delete(noteId);
   }
-
-  const dateId = resolveTaskDateId(task, settings);
-
-  if (!dateId) {
-    return;
-  }
-
-  await createNextRepeatedTaskIfNeeded(task, dateId, settings);
 }
 
-export async function syncCalendarTaskCompletionLocation(noteId: string): Promise<void> {
+async function updateTaskCompletionState(
+  noteId: string,
+  completed: boolean,
+  showError: boolean,
+): Promise<void> {
   const task = await getNoteWithBody(noteId);
 
   if (isDeletedNote(task) || !isTodoNote(task)) {
     return;
   }
 
+  const wasCompleted = isTodoCompleted(task);
   const settings = await getCalendarSettings();
-  const dateId = resolveTaskDateId(task, settings);
-
-  if (!dateId) {
-    return;
-  }
-
-  const completed = isTodoCompleted(task);
-  const parentId = await getTaskCompletionFolderId(completed, settings, false);
+  const parentId = await getTaskCompletionFolderId(completed, settings, showError);
 
   if (!parentId) {
     return;
   }
 
+  const shouldUpdateCompletion = wasCompleted !== completed;
   const shouldMoveTask = task.parent_id !== parentId;
 
-  if (!shouldMoveTask) {
+  if (!shouldUpdateCompletion && !shouldMoveTask) {
     return;
   }
 
-  await joplin.data.put(["notes", noteId], null, {
-    parent_id: parentId,
-  });
+  const payload: Record<string, unknown> = {};
 
-  if (completed) {
+  if (shouldMoveTask) {
+    payload.parent_id = parentId;
+  }
+
+  if (shouldUpdateCompletion) {
+    payload.todo_completed = completed ? Date.now() : 0;
+  }
+
+  await joplin.data.put(["notes", noteId], null, payload);
+
+  if (!completed || wasCompleted) {
+    return;
+  }
+
+  const dateId = resolveTaskDateId(task, settings);
+
+  if (dateId) {
     await createNextRepeatedTaskIfNeeded(task, dateId, settings);
   }
+}
+
+export async function setCalendarTaskCompleted(
+  noteId: string,
+  completed: boolean,
+): Promise<void> {
+  await withTaskCompletionProcessingLock(noteId, () =>
+    updateTaskCompletionState(noteId, completed, true),
+  );
+}
+
+export async function syncCalendarTaskCompletionLocation(noteId: string): Promise<void> {
+  await withTaskCompletionProcessingLock(noteId, async () => {
+    const task = await getNoteWithBody(noteId);
+
+    if (isDeletedNote(task) || !isTodoNote(task)) {
+      return;
+    }
+
+    const settings = await getCalendarSettings();
+    const dateId = resolveTaskDateId(task, settings);
+
+    if (!dateId) {
+      return;
+    }
+
+    const completed = isTodoCompleted(task);
+    const parentId = await getTaskCompletionFolderId(completed, settings, false);
+
+    if (!parentId || task.parent_id === parentId) {
+      return;
+    }
+
+    await joplin.data.put(["notes", noteId], null, {
+      parent_id: parentId,
+    });
+
+    if (completed) {
+      await createNextRepeatedTaskIfNeeded(task, dateId, settings);
+    }
+  });
 }
 
 function renderRepeatDialogHtml(currentFrequency: RepeatFrequency | typeof REPEAT_NONE_VALUE): string {
