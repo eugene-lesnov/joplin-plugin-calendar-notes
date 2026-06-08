@@ -123,9 +123,10 @@ async function refreshPanel() {
   }
 }
 
-webviewApi.onMessage((message) => {
-  if (message?.name === "setPanelHtml") {
-    applyPanelHtml(message.html);
+webviewApi.onMessage((event) => {
+  const payload = event?.message ?? event;
+  if (payload?.name === "setPanelHtml") {
+    applyPanelHtml(payload.html);
   }
 });
 
