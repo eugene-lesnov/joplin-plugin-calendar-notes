@@ -177,10 +177,6 @@ button,
     max-height: none;
 }
 
-#calendar-notes-root[data-mobile="true"] .day-task {
-    min-height: 36px;
-}
-
 #calendar-notes-root[data-mobile="true"] .task-checkbox,
 #calendar-notes-root[data-mobile="true"] .optimistic-checkbox {
     width: 20px;
@@ -189,7 +185,17 @@ button,
 
 #calendar-notes-root[data-mobile="true"] .task-title,
 #calendar-notes-root[data-mobile="true"] .day-note {
-    min-height: 38px;
+    display: block;
+    min-height: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#calendar-notes-root[data-mobile="true"] .day-notes .selected-day-list > li {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
 }
 
 #calendar-notes-root[data-mobile="true"] .add-item-button {
