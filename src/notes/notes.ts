@@ -35,7 +35,6 @@ import {
 } from "./notebooks";
 import { getCalendarSettings } from "../settings/settings";
 import type {
-  AgendaDayData,
   CalendarSettings,
   CalendarTaskWithDate,
   ExistingCalendarNoteMarkers,
@@ -649,78 +648,6 @@ async function scanFolderNotes(
 
     page += 1;
   }
-}
-
-export async function getAgendaDataForDate(
-  dateId: string,
-  settings: CalendarSettings,
-): Promise<AgendaDayData> {
-  const notes: NoteSummary[] = [];
-  const tasks: NoteSummary[] = [];
-  const overdueTasks: CalendarTaskWithDate[] = [];
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const todayId = formatDateId(currentYear, today.getMonth(), today.getDate());
-
-  const notesFolderIds = await getNotebookNotesTreeIds(settings);
-  const tasksFolderIds = await getTasksTreeIds(settings);
-
-  for (const folderId of notesFolderIds) {
-    await scanFolderNotes(folderId, (note) => {
-      if (isDeletedNote(note) || isTodoNote(note)) {
-        return;
-      }
-
-      if (isCalendarNoteTitleForDate(note.title, dateId, settings)) {
-        notes.push(note);
-      }
-    });
-  }
-
-  const tasksWithMetadata = new Set<NoteSummary>();
-
-  for (const folderId of tasksFolderIds) {
-    await scanFolderNotes(folderId, (note) => {
-      if (isDeletedNote(note) || !isTodoNote(note)) {
-        return;
-      }
-
-      if (isCalendarNoteTitleForDate(note.title, dateId, settings)) {
-        tasks.push(note);
-        tasksWithMetadata.add(note);
-      }
-
-      const overdueDateId = !isTodoCompleted(note)
-        ? resolveCalendarNoteDateIdInRange(note.title, currentYear - 10, currentYear, settings)
-        : null;
-
-      if (overdueDateId && overdueDateId < todayId) {
-        overdueTasks.push({ task: note, dateId: overdueDateId });
-        tasksWithMetadata.add(note);
-      }
-    });
-  }
-
-  await attachTaskMetadata([...tasksWithMetadata]);
-
-  notes.sort((first, second) => first.title.localeCompare(second.title));
-  tasks.sort(sortTasks);
-  overdueTasks.sort((first, second) => {
-    const dateComparison = first.dateId.localeCompare(second.dateId);
-
-    if (dateComparison !== 0) {
-      return dateComparison;
-    }
-
-    return first.task.title.localeCompare(second.task.title);
-  });
-
-  return {
-    dateId,
-    notes,
-    tasks,
-    overdueTasks,
-  };
 }
 
 export async function getExistingCalendarNoteMarkers(

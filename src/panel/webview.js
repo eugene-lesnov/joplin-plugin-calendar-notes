@@ -213,18 +213,6 @@ async function postActionMessage(target, action) {
     });
   }
 
-  if (action === "prevWeek") {
-    return webviewApi.postMessage({
-      name: "prevWeek",
-    });
-  }
-
-  if (action === "nextWeek") {
-    return webviewApi.postMessage({
-      name: "nextWeek",
-    });
-  }
-
   if (action === "prevMonth") {
     return webviewApi.postMessage({
       name: "prevMonth",

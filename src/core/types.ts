@@ -21,8 +21,6 @@ export type CalendarMessage =
   | { name: "setTaskRepeat"; id: string }
   | { name: "clearTaskRepeat"; id: string }
   | { name: "toggleOverdueTasks" }
-  | { name: "prevWeek" }
-  | { name: "nextWeek" }
   | { name: "prevMonth" }
   | { name: "nextMonth" }
   | { name: "today" }
@@ -56,13 +54,6 @@ export type ExistingCalendarNoteMarkers = {
   noteCountsByDate: Map<string, number>;
   notesByDate: Map<string, NoteSummary[]>;
   tasksByDate: Map<string, NoteSummary[]>;
-  overdueTasks: CalendarTaskWithDate[];
-};
-
-export type AgendaDayData = {
-  dateId: string;
-  notes: NoteSummary[];
-  tasks: NoteSummary[];
   overdueTasks: CalendarTaskWithDate[];
 };
 

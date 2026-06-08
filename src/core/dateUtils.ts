@@ -152,17 +152,6 @@ export function weekOffset(date: Date, weekStart: WeekStart): number {
     return (date.getDay() + 6) % 7;
 }
 
-export function weekDateIds(dateId: string, weekStart: WeekStart): string[] {
-    const { year, month, day } = parseDateId(dateId);
-    const startDay = day - weekOffset(new Date(year, month, day), weekStart);
-
-    return Array.from({ length: DAYS_IN_WEEK }, (_, index) => {
-        const date = new Date(year, month, startDay + index);
-
-        return formatDateId(date.getFullYear(), date.getMonth(), date.getDate());
-    });
-}
-
 function createWeekdayFormatter(
     options: Intl.DateTimeFormatOptions,
 ): Intl.DateTimeFormat {

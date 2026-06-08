@@ -27,9 +27,7 @@ import {
   addCreatedCalendarNote,
   addCreatedCalendarTask,
   goToNextMonth,
-  goToNextWeek,
   goToPrevMonth,
-  goToPrevWeek,
   goToToday,
   hasStaleVisibleCalendarNoteMarkers,
   isVisibleCalendarNote,
@@ -120,14 +118,6 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMe
 
   if (message.name === "toggleOverdueTasks") {
     return toggleOverdueTasks();
-  }
-
-  if (message.name === "prevWeek") {
-    return goToPrevWeek();
-  }
-
-  if (message.name === "nextWeek") {
-    return goToNextWeek();
   }
 
   if (message.name === "prevMonth") {

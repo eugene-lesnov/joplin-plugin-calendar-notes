@@ -6,8 +6,6 @@ import {
   escapeHtml,
   formatDateId,
   pad2,
-  parseDateId,
-  weekDateIds,
   weekOffset,
   weekdayLabels,
 } from "../core/dateUtils";
@@ -16,7 +14,6 @@ import { isMobilePlatform } from "../core/platform";
 import {
   NOTE_FIELDS,
   buildDayIdentifier,
-  getAgendaDataForDate,
   getExistingCalendarNoteMarkers,
   isCalendarNoteTitleForDate,
   isDeletedNote,
@@ -157,28 +154,6 @@ function getTodayDateId(): string {
     today.getMonth(),
     today.getDate(),
   );
-}
-
-function setCurrentMonthFromDateId(dateId: string): void {
-  const date = parseDateId(dateId);
-
-  currentYear = date.year;
-  currentMonth = date.month;
-}
-
-function shiftDateId(dateId: string, dayOffset: number): string {
-  const date = parseDateId(dateId);
-  const shifted = new Date(date.year, date.month, date.day + dayOffset);
-
-  return formatDateId(
-    shifted.getFullYear(),
-    shifted.getMonth(),
-    shifted.getDate(),
-  );
-}
-
-function getSelectedOrTodayDateId(): string {
-  return selectedDateId ?? getTodayDateId();
 }
 
 function getTaskMarkerClass(tasks: NoteSummary[]): string | null {
@@ -442,25 +417,16 @@ function buildVisibleNoteCountsByDate(): Map<string, number> {
 
 async function renderVisiblePanel(): Promise<PanelHtmlMessage> {
   const settings = await getCalendarSettings();
-  const isMobile = await isMobilePlatform();
 
-  const html = isMobile && selectedDateId
-    ? renderAgendaHtml(
-        selectedDateId,
-        visibleTasksByDate.get(selectedDateId) ?? [],
-        visibleNotesByDate.get(selectedDateId) ?? [],
-        visibleOverdueTasks,
-        settings,
-      )
-    : renderCalendarHtml(
-        currentYear,
-        currentMonth,
-        buildVisibleNoteCountsByDate(),
-        visibleNotesByDate,
-        visibleTasksByDate,
-        visibleOverdueTasks,
-        settings,
-      );
+  const html = renderCalendarHtml(
+    currentYear,
+    currentMonth,
+    buildVisibleNoteCountsByDate(),
+    visibleNotesByDate,
+    visibleTasksByDate,
+    visibleOverdueTasks,
+    settings,
+  );
 
   return updatePanelHtml(html);
 }
@@ -532,74 +498,6 @@ function renderSelectedDaySectionHtml(
   return `
     <div class="selected-day">
       <div class="selected-day-title">${escapeHtml(title)}</div>
-      ${renderTasksSectionHtml(dateId, tasks, settings)}
-      ${renderNotesSectionHtml(dateId, notes)}
-    </div>
-  `;
-}
-
-function renderWeekStripHtml(
-  selectedDate: string,
-  settings: CalendarSettings,
-): string {
-  const todayId = getTodayDateId();
-  const labelsHtml = weekdayLabels(settings.weekStart)
-    .map((label) => `<div>${escapeHtml(label)}</div>`)
-    .join("");
-
-  const daysHtml = weekDateIds(selectedDate, settings.weekStart)
-    .map((dateId) => {
-      const classes = [
-        "week-strip-day",
-        dateId === todayId ? "today" : "",
-        dateId === selectedDate ? "selected" : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      return `<button
-        class="${classes}"
-        data-action="${SELECT_DATE_ACTION}"
-        data-date="${escapeHtml(dateId)}"
-      >${parseDateId(dateId).day}</button>`;
-    })
-    .join("");
-
-  return `
-    <div class="week-strip">
-      <div class="week-strip-labels">${labelsHtml}</div>
-      <div class="week-strip-days">${daysHtml}</div>
-    </div>
-  `;
-}
-
-function renderAgendaHtml(
-  dateId: string,
-  tasks: readonly NoteSummary[],
-  notes: readonly NoteSummary[],
-  overdueTasks: readonly CalendarTaskWithDate[],
-  settings: CalendarSettings,
-): string {
-  const isToday = dateId === getTodayDateId();
-  const kicker = isToday ? strings.agendaTodayLabel : formatMonthLabel(currentYear, currentMonth);
-  const dateLabel = buildDayIdentifier(dateId, settings);
-
-  return `
-    <div class="agenda-root">
-      <div class="agenda-header">
-        <div class="agenda-kicker">${escapeHtml(kicker)}</div>
-        <div class="agenda-date">${escapeHtml(dateLabel)}</div>
-      </div>
-
-      <div class="agenda-nav">
-        <span role="button" tabindex="0" class="agenda-day-button" data-action="prevWeek" title="${escapeHtml(strings.previousWeekTitle)}">‹</span>
-        <span role="button" tabindex="0" class="agenda-day-button" data-action="today">${escapeHtml(strings.todayButtonLabel)}</span>
-        <span role="button" tabindex="0" class="agenda-day-button" data-action="nextWeek" title="${escapeHtml(strings.nextWeekTitle)}">›</span>
-      </div>
-
-      ${renderWeekStripHtml(dateId, settings)}
-
-      ${renderOverdueTasksSectionHtml(overdueTasks, settings)}
       ${renderTasksSectionHtml(dateId, tasks, settings)}
       ${renderNotesSectionHtml(dateId, notes)}
     </div>
@@ -721,37 +619,8 @@ async function loadVisibleMonthMarkers(settings: CalendarSettings) {
   return existingMarkers;
 }
 
-async function renderMobileAgenda(settings: CalendarSettings): Promise<PanelHtmlMessage> {
-  selectedDateId = getSelectedOrTodayDateId();
-  setCurrentMonthFromDateId(selectedDateId);
-
-  const agendaData = await getAgendaDataForDate(selectedDateId, settings);
-  visibleCalendarNoteIds = new Set([
-    ...agendaData.notes.map((note) => note.id),
-    ...agendaData.tasks.map((task) => task.id),
-    ...agendaData.overdueTasks.map(({ task }) => task.id),
-  ]);
-  visibleCalendarNoteDatesById = new Map([
-    ...agendaData.notes.map((note): [string, string] => [note.id, selectedDateId]),
-    ...agendaData.tasks.map((task): [string, string] => [task.id, selectedDateId]),
-    ...agendaData.overdueTasks.map(({ task, dateId }): [string, string] => [task.id, dateId]),
-  ]);
-  visibleNotesByDate = new Map([[selectedDateId, agendaData.notes]]);
-  visibleTasksByDate = new Map([[selectedDateId, agendaData.tasks]]);
-  visibleOverdueTasks = agendaData.overdueTasks;
-
-  const html = renderAgendaHtml(
-    selectedDateId,
-    agendaData.tasks,
-    agendaData.notes,
-    agendaData.overdueTasks,
-    settings,
-  );
-
-  return updatePanelHtml(html);
-}
-
-async function renderDesktopCalendar(settings: CalendarSettings): Promise<PanelHtmlMessage> {
+export async function renderCalendar(): Promise<PanelHtmlMessage> {
+  const settings = await getCalendarSettings();
   const existingMarkers = await loadVisibleMonthMarkers(settings);
   const html = renderCalendarHtml(
     currentYear,
@@ -764,16 +633,6 @@ async function renderDesktopCalendar(settings: CalendarSettings): Promise<PanelH
   );
 
   return updatePanelHtml(html);
-}
-
-export async function renderCalendar(): Promise<PanelHtmlMessage> {
-  const settings = await getCalendarSettings();
-
-  if (await isMobilePlatform()) {
-    return renderMobileAgenda(settings);
-  }
-
-  return renderDesktopCalendar(settings);
 }
 
 export async function refreshVisibleCalendar(): Promise<PanelHtmlMessage | void> {
@@ -914,20 +773,6 @@ export async function goToToday(): Promise<PanelHtmlMessage> {
   return renderCalendar();
 }
 
-export async function goToPrevWeek(): Promise<PanelHtmlMessage> {
-  selectedDateId = shiftDateId(getSelectedOrTodayDateId(), -7);
-  setCurrentMonthFromDateId(selectedDateId);
-
-  return renderCalendar();
-}
-
-export async function goToNextWeek(): Promise<PanelHtmlMessage> {
-  selectedDateId = shiftDateId(getSelectedOrTodayDateId(), 7);
-  setCurrentMonthFromDateId(selectedDateId);
-
-  return renderCalendar();
-}
-
 export async function goToPrevMonth(): Promise<PanelHtmlMessage> {
   currentMonth -= 1;
 
@@ -955,13 +800,6 @@ export async function goToNextMonth(): Promise<PanelHtmlMessage> {
 }
 
 export async function selectCalendarDate(dateId: string): Promise<PanelHtmlMessage> {
-  if (await isMobilePlatform()) {
-    selectedDateId = dateId;
-    setCurrentMonthFromDateId(selectedDateId);
-
-    return renderCalendar();
-  }
-
   const settings = await getCalendarSettings();
 
   selectedDateId = dateId === selectedDateId ? null : dateId;
