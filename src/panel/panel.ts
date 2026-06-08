@@ -45,6 +45,9 @@ let visibleOverdueTasks: CalendarTaskWithDate[] = [];
 let showAllOverdueTasks = false;
 let selectedDateId: string | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+let refreshInFlight = false;
+let refreshPending = false;
+let renderSeq = 0;
 let panelShellReady = false;
 
 export async function setupPanel(
@@ -603,12 +606,18 @@ function renderCalendarHtml(
 	`;
 }
 
-async function loadVisibleMonthMarkers(settings: CalendarSettings) {
+export async function renderCalendar(): Promise<PanelHtmlMessage | void> {
+  const mySeq = ++renderSeq;
+  const settings = await getCalendarSettings();
   const existingMarkers = await getExistingCalendarNoteMarkers(
     currentYear,
     currentMonth,
     settings,
   );
+
+  if (mySeq !== renderSeq) {
+    return;
+  }
 
   visibleCalendarNoteIds = new Set(existingMarkers.datesByNoteId.keys());
   visibleCalendarNoteDatesById = new Map(existingMarkers.datesByNoteId);
@@ -616,12 +625,6 @@ async function loadVisibleMonthMarkers(settings: CalendarSettings) {
   visibleTasksByDate = existingMarkers.tasksByDate;
   visibleOverdueTasks = existingMarkers.overdueTasks;
 
-  return existingMarkers;
-}
-
-export async function renderCalendar(): Promise<PanelHtmlMessage> {
-  const settings = await getCalendarSettings();
-  const existingMarkers = await loadVisibleMonthMarkers(settings);
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
@@ -643,6 +646,23 @@ export async function refreshVisibleCalendar(): Promise<PanelHtmlMessage | void>
   return renderCalendar();
 }
 
+async function runCoalescedRefresh(): Promise<void> {
+  if (refreshInFlight) {
+    refreshPending = true;
+    return;
+  }
+
+  refreshInFlight = true;
+  try {
+    do {
+      refreshPending = false;
+      await renderCalendar();
+    } while (refreshPending);
+  } finally {
+    refreshInFlight = false;
+  }
+}
+
 export async function scheduleCalendarRefresh(): Promise<void> {
   if (!(await isPanelVisible())) {
     return;
@@ -654,7 +674,7 @@ export async function scheduleCalendarRefresh(): Promise<void> {
 
   refreshTimer = setTimeout(() => {
     refreshTimer = null;
-    void renderCalendar();
+    void runCoalescedRefresh();
   }, CALENDAR_REFRESH_DEBOUNCE_MS);
 }
 
@@ -763,7 +783,7 @@ export async function toggleCalendarPanel(): Promise<void> {
   await showCalendarPanel();
 }
 
-export async function goToToday(): Promise<PanelHtmlMessage> {
+export async function goToToday(): Promise<PanelHtmlMessage | void> {
   const today = new Date();
 
   currentYear = today.getFullYear();
@@ -773,7 +793,7 @@ export async function goToToday(): Promise<PanelHtmlMessage> {
   return renderCalendar();
 }
 
-export async function goToPrevMonth(): Promise<PanelHtmlMessage> {
+export async function goToPrevMonth(): Promise<PanelHtmlMessage | void> {
   currentMonth -= 1;
 
   if (currentMonth < 0) {
@@ -786,7 +806,7 @@ export async function goToPrevMonth(): Promise<PanelHtmlMessage> {
   return renderCalendar();
 }
 
-export async function goToNextMonth(): Promise<PanelHtmlMessage> {
+export async function goToNextMonth(): Promise<PanelHtmlMessage | void> {
   currentMonth += 1;
 
   if (currentMonth > 11) {
