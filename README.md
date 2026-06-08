@@ -34,13 +34,14 @@ Joplin **3.5** or newer.
 | Notes: notebook | Notebook path for new calendar notes, e.g. `Calendar notes`; missing notebooks are created automatically |
 | Notes: nested notebooks | Optional path inside the notes notebook, e.g. `{{year}}/{{month}}` |
 | Notes: new note template | Joplin note used as a body template for new notes, e.g. `Templates/Calendar note`; template tags are copied to created notes |
-| Tasks: notebook | Notebook path for new todo tasks, e.g. `Tasks`; missing notebooks are created automatically |
+| Tasks: notebook | Notebook path for new active todo tasks, e.g. `Tasks`; missing notebooks are created automatically |
 | Tasks: nested notebooks | Optional path inside the tasks notebook, e.g. `{{year}}/{{month}}` |
+| Tasks: completed notebook | Notebook path where completed tasks are moved, e.g. `Completed tasks`; missing notebooks are created automatically |
 | Tasks: new task template | Joplin note used as a body template for new todo tasks, e.g. `Templates/Calendar task`; template tags are copied to created tasks |
 
 ## How notes are matched
 
-Notes are matched only inside the configured notes notebook and its nested notebooks. Joplin todo tasks are matched only inside the configured tasks notebook and its nested notebooks. An item belongs to a day when its title starts with the selected date format, so renamed items like `25.01.2026 meeting` remain visible for that day. New notes and tasks are created in their own configured notebooks. If a nested structure is set, missing nested notebooks are created automatically.
+Notes are matched only inside the configured notes notebook and its nested notebooks. Active Joplin todo tasks are matched only inside the configured tasks notebook and its nested notebooks. Completed tasks are moved to the configured completed tasks notebook. An item belongs to a day when its title starts with the selected date format, so renamed items like `25.01.2026 meeting` remain visible for that day. New notes and tasks are created in their own configured notebooks. If a nested structure is set, missing nested notebooks are created automatically.
 
 ## Recurring tasks
 
