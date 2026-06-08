@@ -54,6 +54,7 @@ const TOGGLE_MENU_ITEM_ID = "toggleCalendarNotesMenuItem";
 const JOPLIN_LOCALE_SETTING_KEY = "locale";
 
 let previousSelectedNoteIds: string[] = [];
+let taskCompletionQueue = Promise.resolve();
 
 const RENDER_AFFECTING_SETTINGS = [
   SETTING_DAY_IDENTIFIER_FORMAT,
@@ -69,6 +70,13 @@ const RENDER_AFFECTING_SETTINGS = [
 
 async function shouldOpenCreatedItem(): Promise<boolean> {
   return !(await isMobilePlatform());
+}
+
+async function enqueueTaskCompletion(operation: () => Promise<void>): Promise<void> {
+  const nextOperation = taskCompletionQueue.then(operation, operation);
+  taskCompletionQueue = nextOperation.catch(() => undefined);
+
+  return nextOperation;
 }
 
 async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMessage | void> {
@@ -102,7 +110,9 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMe
   }
 
   if (message.name === "toggleTask") {
-    await setCalendarTaskCompleted(message.id, !message.completed);
+    await enqueueTaskCompletion(() =>
+      setCalendarTaskCompleted(message.id, !message.completed),
+    );
     return renderCalendar();
   }
 
