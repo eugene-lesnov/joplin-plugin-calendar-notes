@@ -86,6 +86,11 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMe
 
   if (message.name === "openNote") {
     await joplin.commands.execute("openNote", message.id);
+
+    if (await isMobilePlatform()) {
+      await joplin.commands.execute("dismissPluginPanels");
+    }
+
     return;
   }
 
