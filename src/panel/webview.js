@@ -297,6 +297,18 @@ document.addEventListener("keydown", async (event) => {
   await handleAction(target);
 });
 
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    void refreshPanel();
+  }
+});
+
 setInterval(() => {
   void refreshPanel();
 }, REFRESH_INTERVAL_MS);
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => void refreshPanel());
+} else {
+  void refreshPanel();
+}
