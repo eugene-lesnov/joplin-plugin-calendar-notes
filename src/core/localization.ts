@@ -1,3 +1,5 @@
+import type { RepeatFrequency } from "./types";
+
 export interface AppLocalization {
   settingsSectionLabel: string;
   dayIdentifierFormatLabel: string;
@@ -285,6 +287,22 @@ export const formatLocalizedString = (
     const value = values[key];
     return value === undefined ? match : String(value);
   });
+};
+
+export const getRepeatLabel = (frequency: RepeatFrequency): string => {
+  if (frequency === "daily") {
+    return strings.taskRepeatDailyLabel;
+  }
+
+  if (frequency === "weekly") {
+    return strings.taskRepeatWeeklyLabel;
+  }
+
+  if (frequency === "monthly") {
+    return strings.taskRepeatMonthlyLabel;
+  }
+
+  return strings.taskRepeatYearlyLabel;
 };
 
 export default strings;

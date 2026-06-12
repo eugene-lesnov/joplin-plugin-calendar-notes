@@ -6,18 +6,22 @@ import {
   PLUGIN_ID,
 } from "../core/constants";
 import {
-  daysInMonth,
-  escapeHtml,
   formatDateByPattern,
   formatDateExpression,
   formatDateId,
+  getDateTokenValues,
+  getTodayDateId,
   isoWeekNumber,
   pad2,
+  parseDateFromTitle,
   parseDateId,
   quarterName,
   startOfLocalDayMs,
 } from "../core/dateUtils";
-import strings, { formatLocalizedString } from "../core/localization";
+import strings, {
+  formatLocalizedString,
+  getRepeatLabel,
+} from "../core/localization";
 import {
   getNextRepeatDateId,
   shiftAlarmToDate,
@@ -92,24 +96,6 @@ export function isDeletedNote(note: NoteSummary): boolean {
   return Boolean(note.deleted_time && note.deleted_time > 0);
 }
 
-function buildExpectedCalendarDayIdentifiers(
-  year: number,
-  month: number,
-  settings: CalendarSettings,
-): Map<string, string> {
-  const expectedIdentifiers = new Map<string, string>();
-  const count = daysInMonth(year, month);
-
-  for (let day = 1; day <= count; day++) {
-    const dateId = formatDateId(year, month, day);
-    const identifier = buildDayIdentifier(dateId, settings);
-
-    expectedIdentifiers.set(identifier, dateId);
-  }
-
-  return expectedIdentifiers;
-}
-
 export function isCalendarNoteTitleForDate(
   title: string,
   dateId: string,
@@ -120,43 +106,28 @@ export function isCalendarNoteTitleForDate(
   return title.startsWith(dayIdentifier);
 }
 
+export function resolveAnyCalendarNoteDateId(
+  title: string,
+  settings: CalendarSettings,
+): string | null {
+  const date = parseDateFromTitle(title, settings.dayIdentifierFormat);
+
+  return date ? formatDateId(date.year, date.month, date.day) : null;
+}
+
 export function resolveCalendarNoteDateId(
   title: string,
   year: number,
   month: number,
   settings: CalendarSettings,
 ): string | null {
-  const expectedIdentifiers = buildExpectedCalendarDayIdentifiers(year, month, settings);
-  const candidates = [...expectedIdentifiers.entries()].sort(
-    ([firstIdentifier], [secondIdentifier]) => secondIdentifier.length - firstIdentifier.length,
-  );
+  const date = parseDateFromTitle(title, settings.dayIdentifierFormat);
 
-  for (const [, dateId] of candidates) {
-    if (isCalendarNoteTitleForDate(title, dateId, settings)) {
-      return dateId;
-    }
+  if (!date || date.year !== year || date.month !== month) {
+    return null;
   }
 
-  return null;
-}
-
-function resolveCalendarNoteDateIdInRange(
-  title: string,
-  startYear: number,
-  endYear: number,
-  settings: CalendarSettings,
-): string | null {
-  for (let year = startYear; year <= endYear; year++) {
-    for (let month = 0; month < 12; month++) {
-      const dateId = resolveCalendarNoteDateId(title, year, month, settings);
-
-      if (dateId) {
-        return dateId;
-      }
-    }
-  }
-
-  return null;
+  return formatDateId(date.year, date.month, date.day);
 }
 
 async function findNoteByExactTitleInFolder(
@@ -377,29 +348,16 @@ async function copyNoteTags(sourceNoteId: string | null, targetNoteId: string): 
 
 function getDateReplacements(dateId: string): Record<string, string> {
   const date = parseDateId(dateId);
-  const year = String(date.year);
-  const shortYear = year.slice(-2);
-  const month = date.month + 1;
-  const day = date.day;
-
-  return {
+  const replacements: Record<string, string> = {
     date: dateId,
     isoDate: dateId,
-
-    YYYY: year,
-    yyyy: year,
-    YY: shortYear,
-
-    MM: pad2(month),
-    mm: pad2(month),
-    M: String(month),
-    m: String(month),
-
-    DD: pad2(day),
-    dd: pad2(day),
-    D: String(day),
-    d: String(day),
   };
+
+  for (const [token, value] of getDateTokenValues(date)) {
+    replacements[token] = value;
+  }
+
+  return replacements;
 }
 
 export function renderNoteTemplate(
@@ -702,7 +660,7 @@ export async function getExistingCalendarNoteMarkers(
         settings,
       );
       const overdueDateId = !isTodoCompleted(note)
-        ? resolveCalendarNoteDateIdInRange(note.title, currentYear - 10, currentYear, settings)
+        ? resolveAnyCalendarNoteDateId(note.title, settings)
         : null;
 
       if (dateId) {
@@ -906,27 +864,6 @@ export async function createCalendarTaskForDate(
   return created;
 }
 
-function getTodayDateId(): string {
-  const today = new Date();
-  return formatDateId(today.getFullYear(), today.getMonth(), today.getDate());
-}
-
-
-function getRepeatLabel(frequency: RepeatFrequency): string {
-  if (frequency === "daily") {
-    return strings.taskRepeatDailyLabel;
-  }
-
-  if (frequency === "weekly") {
-    return strings.taskRepeatWeeklyLabel;
-  }
-
-  if (frequency === "monthly") {
-    return strings.taskRepeatMonthlyLabel;
-  }
-
-  return strings.taskRepeatYearlyLabel;
-}
 
 function replaceTaskDateInTitle(
   title: string,
@@ -1111,12 +1048,7 @@ async function getTaskCompletionFolderId(
 }
 
 function resolveTaskDateId(task: NoteSummary, settings: CalendarSettings): string | null {
-  return resolveCalendarNoteDateIdInRange(
-    task.title,
-    new Date().getFullYear() - 10,
-    new Date().getFullYear() + 10,
-    settings,
-  );
+  return resolveAnyCalendarNoteDateId(task.title, settings);
 }
 
 async function createNextRepeatedTaskIfNeeded(

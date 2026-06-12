@@ -5,11 +5,16 @@ import {
   daysInMonth,
   escapeHtml,
   formatDateId,
+  getTodayDateId,
   pad2,
   weekOffset,
   weekdayLabels,
 } from "../core/dateUtils";
-import strings, { formatLocalizedString, getLocales } from "../core/localization";
+import strings, {
+  formatLocalizedString,
+  getLocales,
+  getRepeatLabel,
+} from "../core/localization";
 import { isMobilePlatform } from "../core/platform";
 import {
   NOTE_FIELDS,
@@ -26,7 +31,6 @@ import type {
   CalendarTaskWithDate,
   NoteSummary,
   PanelHtmlMessage,
-  RepeatFrequency,
 } from "../core/types";
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
@@ -37,7 +41,6 @@ const SELECT_DATE_ACTION = "selectDate";
 let panelHandle: string;
 let currentYear: number;
 let currentMonth: number;
-let visibleCalendarNoteIds = new Set<string>();
 let visibleCalendarNoteDatesById = new Map<string, string>();
 let visibleNotesByDate: Map<string, NoteSummary[]> = new Map();
 let visibleTasksByDate: Map<string, NoteSummary[]> = new Map();
@@ -149,16 +152,6 @@ function formatMonthLabel(year: number, month: number): string {
   }
 }
 
-function getTodayDateId(): string {
-  const today = new Date();
-
-  return formatDateId(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-}
-
 function getTaskMarkerClass(tasks: NoteSummary[]): string | null {
   if (tasks.length <= 0) {
     return null;
@@ -233,22 +226,6 @@ function formatTaskDateLabel(dateId: string): string {
   const currentYear = String(new Date().getFullYear());
 
   return year === currentYear ? `${day}.${month}` : `${day}.${month}.${year}`;
-}
-
-function getRepeatLabel(frequency: RepeatFrequency): string {
-  if (frequency === "daily") {
-    return strings.taskRepeatDailyLabel;
-  }
-
-  if (frequency === "weekly") {
-    return strings.taskRepeatWeeklyLabel;
-  }
-
-  if (frequency === "monthly") {
-    return strings.taskRepeatMonthlyLabel;
-  }
-
-  return strings.taskRepeatYearlyLabel;
 }
 
 function renderTaskRepeatHtml(task: NoteSummary): string {
@@ -440,15 +417,7 @@ function addVisibleCalendarItem(
   target: Map<string, NoteSummary[]>,
 ): void {
   target.set(dateId, [...(target.get(dateId) ?? []), note]);
-  visibleCalendarNoteIds.add(note.id);
   visibleCalendarNoteDatesById.set(note.id, dateId);
-}
-
-function formatOverdueDatePrefix(dateId: string): string {
-  const [year, month, day] = dateId.split("-");
-  const currentYear = String(new Date().getFullYear());
-
-  return year === currentYear ? `${day}.${month}` : `${day}.${month}.${year}`;
 }
 
 function renderOverdueTasksSectionHtml(
@@ -478,7 +447,7 @@ function renderOverdueTasksSectionHtml(
                   task,
                   stripDayIdentifierFromTitle(task.title, dateId, settings),
                   dateId,
-                  formatOverdueDatePrefix(dateId),
+                  formatTaskDateLabel(dateId),
                 ),
               )
               .join("")}
@@ -619,7 +588,6 @@ export async function renderCalendar(): Promise<PanelHtmlMessage | void> {
     return;
   }
 
-  visibleCalendarNoteIds = new Set(existingMarkers.datesByNoteId.keys());
   visibleCalendarNoteDatesById = new Map(existingMarkers.datesByNoteId);
   visibleNotesByDate = existingMarkers.notesByDate;
   visibleTasksByDate = existingMarkers.tasksByDate;
@@ -679,7 +647,7 @@ export async function scheduleCalendarRefresh(): Promise<void> {
 }
 
 export async function isVisibleCalendarNote(noteId: string): Promise<boolean> {
-  return (await isPanelVisible()) && visibleCalendarNoteIds.has(noteId);
+  return (await isPanelVisible()) && visibleCalendarNoteDatesById.has(noteId);
 }
 
 export async function hasStaleVisibleCalendarNoteMarkers(): Promise<boolean> {
@@ -712,7 +680,7 @@ export async function shouldRefreshCalendarForNoteChange(
     return false;
   }
 
-  if (visibleCalendarNoteIds.has(noteId)) {
+  if (visibleCalendarNoteDatesById.has(noteId)) {
     return true;
   }
 

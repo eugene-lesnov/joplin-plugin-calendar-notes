@@ -31,6 +31,12 @@ export function formatDateId(
     return `${year}-${pad2(month + 1)}-${pad2(day)}`;
 }
 
+export function getTodayDateId(): string {
+    const today = new Date();
+
+    return formatDateId(today.getFullYear(), today.getMonth(), today.getDate());
+}
+
 export function parseDateId(dateId: string): CalendarDate {
     const [year, month, day] = dateId.split("-").map(Number);
 
@@ -41,7 +47,148 @@ export function parseDateId(dateId: string): CalendarDate {
     };
 }
 
-function getDateTokenValues(date: CalendarDate): Array<[string, string]> {
+type DateField = "year" | "month" | "day";
+
+type CompiledDatePattern = {
+    regex: RegExp;
+    fields: DateField[];
+};
+
+const DATE_TOKEN_REGEX_FRAGMENTS: Array<[string, string, DateField]> = [
+    ["YYYY", "(\\d{4})", "year"],
+    ["yyyy", "(\\d{4})", "year"],
+    ["YY", "(\\d{2})", "year"],
+    ["MM", "(\\d{2})", "month"],
+    ["mm", "(\\d{2})", "month"],
+    ["M", "(\\d{1,2})", "month"],
+    ["m", "(\\d{1,2})", "month"],
+    ["DD", "(\\d{2})", "day"],
+    ["dd", "(\\d{2})", "day"],
+    ["D", "(\\d{1,2})", "day"],
+    ["d", "(\\d{1,2})", "day"],
+];
+
+const compiledDatePatternCache = new Map<string, CompiledDatePattern | null>();
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function compileDateExpression(expression: string): {
+    source: string;
+    fields: DateField[];
+} {
+    let source = "";
+    const fields: DateField[] = [];
+    let index = 0;
+
+    while (index < expression.length) {
+        const matchedToken = DATE_TOKEN_REGEX_FRAGMENTS.find(([token]) =>
+            expression.startsWith(token, index),
+        );
+
+        if (matchedToken) {
+            const [token, fragment, field] = matchedToken;
+            source += fragment;
+            fields.push(field);
+            index += token.length;
+            continue;
+        }
+
+        source += escapeRegExp(expression[index]);
+        index += 1;
+    }
+
+    return { source, fields };
+}
+
+function compileDatePattern(pattern: string): CompiledDatePattern | null {
+    const source = pattern.trim() || DEFAULT_DAY_IDENTIFIER_FORMAT;
+    const fields: DateField[] = [];
+    const expressionPattern = new RegExp(
+        DATE_FORMAT_EXPRESSION_PATTERN.source,
+        "g",
+    );
+    let regexSource = "^";
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = expressionPattern.exec(source)) !== null) {
+        regexSource += escapeRegExp(source.slice(lastIndex, match.index));
+
+        const compiled = compileDateExpression(match[1].trim());
+        regexSource += compiled.source;
+        fields.push(...compiled.fields);
+        lastIndex = match.index + match[0].length;
+    }
+
+    regexSource += escapeRegExp(source.slice(lastIndex));
+
+    if (
+        !fields.includes("year")
+        || !fields.includes("month")
+        || !fields.includes("day")
+    ) {
+        return null;
+    }
+
+    return { regex: new RegExp(regexSource), fields };
+}
+
+function getCompiledDatePattern(pattern: string): CompiledDatePattern | null {
+    const cached = compiledDatePatternCache.get(pattern);
+
+    if (cached !== undefined) {
+        return cached;
+    }
+
+    const compiled = compileDatePattern(pattern);
+    compiledDatePatternCache.set(pattern, compiled);
+
+    return compiled;
+}
+
+export function parseDateFromTitle(
+    title: string,
+    pattern: string,
+): CalendarDate | null {
+    const compiled = getCompiledDatePattern(pattern);
+
+    if (!compiled) {
+        return null;
+    }
+
+    const match = compiled.regex.exec(title);
+
+    if (!match) {
+        return null;
+    }
+
+    let year = 0;
+    let month = 0;
+    let day = 0;
+
+    for (let groupIndex = 0; groupIndex < compiled.fields.length; groupIndex++) {
+        const value = Number(match[groupIndex + 1]);
+        const field = compiled.fields[groupIndex];
+
+        if (field === "year") {
+            year = value;
+        } else if (field === "month") {
+            month = value;
+        } else {
+            day = value;
+        }
+    }
+
+    if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month - 1)) {
+        return null;
+    }
+
+    return { year, month: month - 1, day };
+}
+
+export function getDateTokenValues(date: CalendarDate): Array<[string, string]> {
     const year = String(date.year);
     const shortYear = year.slice(-2);
     const month = date.month + 1;

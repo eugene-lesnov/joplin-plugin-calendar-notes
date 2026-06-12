@@ -145,14 +145,6 @@ document.addEventListener("contextmenu", async (event) => {
   }));
 });
 
-function setTaskToggleBusy(target, busy) {
-  target.dataset.busy = busy ? "true" : "false";
-
-  if (target instanceof HTMLInputElement) {
-    target.disabled = busy;
-  }
-}
-
 function applyOptimisticTaskToggle(target) {
   if (!(target instanceof HTMLInputElement)) {
     return;
@@ -167,31 +159,31 @@ function applyOptimisticTaskToggle(target) {
 async function handleTaskToggle(target) {
   const wasCompleted = target.dataset.completed === "true";
 
-  setTaskToggleBusy(target, true);
   applyOptimisticTaskToggle(target);
   panelVersion += 1;
+  const requestVersion = panelVersion;
 
   try {
-    applyPanelResponse(await webviewApi.postMessage({
+    const response = await webviewApi.postMessage({
       name: "toggleTask",
       id: target.dataset.noteId,
       completed: wasCompleted,
-    }));
+    });
+
+    if (requestVersion === panelVersion) {
+      applyPanelResponse(response);
+    }
   } catch (error) {
-    panelVersion += 1;
     console.error("Failed to toggle calendar task.", error);
-    applyPanelResponse(await webviewApi.postMessage({ name: "refresh" }), true);
-  } finally {
-    setTaskToggleBusy(target, false);
+
+    if (requestVersion === panelVersion) {
+      applyPanelResponse(await webviewApi.postMessage({ name: "refresh" }), true);
+    }
   }
 }
 
 async function handleAction(target) {
   const action = target.dataset.action;
-
-  if (target.dataset.busy === "true") {
-    return;
-  }
 
   if (typeof target.blur === "function") {
     target.blur();

@@ -183,6 +183,32 @@ button,
     height: 20px;
 }
 
+#calendar-notes-root[data-mobile="true"] .task-checkbox {
+    position: relative;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+    border: 2px solid var(--joplin-color);
+    border-radius: 4px;
+    background: var(--joplin-background-color);
+}
+
+#calendar-notes-root[data-mobile="true"] .day-task.completed .task-checkbox {
+    background: var(--joplin-color);
+}
+
+#calendar-notes-root[data-mobile="true"] .day-task.completed .task-checkbox::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 10px;
+    border: solid var(--joplin-background-color);
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -60%) rotate(45deg);
+}
+
 #calendar-notes-root[data-mobile="true"] .task-title,
 #calendar-notes-root[data-mobile="true"] .day-note {
     display: block;
