@@ -19,10 +19,12 @@ import { isMobilePlatform } from "../core/platform";
 import {
   NOTE_FIELDS,
   buildDayIdentifier,
+  compareCalendarNotesByTitle,
   getExistingCalendarNoteMarkers,
   isCalendarNoteTitleForDate,
   isDeletedNote,
   resolveCalendarNoteDateId,
+  sortTasks,
 } from "../notes/notes";
 import { getCalendarSettings } from "../settings/settings";
 import type {
@@ -415,8 +417,11 @@ function addVisibleCalendarItem(
   dateId: string,
   note: NoteSummary,
   target: Map<string, NoteSummary[]>,
+  compare: (first: NoteSummary, second: NoteSummary) => number,
 ): void {
-  target.set(dateId, [...(target.get(dateId) ?? []), note]);
+  const items = [...(target.get(dateId) ?? []), note].sort(compare);
+
+  target.set(dateId, items);
   visibleCalendarNoteDatesById.set(note.id, dateId);
 }
 
@@ -718,7 +723,7 @@ export async function addCreatedCalendarNote(
     return renderVisiblePanel();
   }
 
-  addVisibleCalendarItem(dateId, note, visibleNotesByDate);
+  addVisibleCalendarItem(dateId, note, visibleNotesByDate, compareCalendarNotesByTitle);
   return renderVisiblePanel();
 }
 
@@ -730,7 +735,7 @@ export async function addCreatedCalendarTask(
     return renderVisiblePanel();
   }
 
-  addVisibleCalendarItem(dateId, task, visibleTasksByDate);
+  addVisibleCalendarItem(dateId, task, visibleTasksByDate, sortTasks);
   return renderVisiblePanel();
 }
 

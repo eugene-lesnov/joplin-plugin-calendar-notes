@@ -70,6 +70,17 @@ function waitForNextPaint() {
   });
 }
 
+function insertOptimisticTask(list, item) {
+  const firstCompleted = list.querySelector(".day-task.completed");
+
+  if (firstCompleted) {
+    list.insertBefore(item, firstCompleted);
+    return;
+  }
+
+  list.appendChild(item);
+}
+
 function addOptimisticItem(target, action) {
   const section = target.closest(action === "createTask" ? ".day-tasks" : ".day-notes");
 
@@ -77,11 +88,16 @@ function addOptimisticItem(target, action) {
     return null;
   }
 
-  const item = action === "createTask"
-    ? createOptimisticTaskElement()
-    : createOptimisticNoteElement();
+  const list = ensureSectionList(section);
 
-  ensureSectionList(section).appendChild(item);
+  if (action === "createTask") {
+    const item = createOptimisticTaskElement();
+    insertOptimisticTask(list, item);
+    return item;
+  }
+
+  const item = createOptimisticNoteElement();
+  list.appendChild(item);
   return item;
 }
 
@@ -126,7 +142,7 @@ async function refreshPanel() {
 webviewApi.onMessage((event) => {
   const payload = event?.message ?? event;
   if (payload?.name === "setPanelHtml") {
-    applyPanelHtml(payload.html);
+    applyPanelResponse(payload);
   }
 });
 

@@ -584,7 +584,14 @@ function hasTaskRepeat(note: NoteSummary): boolean {
   return Boolean(getTaskMetadata(note).repeat);
 }
 
-function sortTasks(first: NoteSummary, second: NoteSummary): number {
+export function compareCalendarNotesByTitle(
+  first: NoteSummary,
+  second: NoteSummary,
+): number {
+  return first.title.localeCompare(second.title);
+}
+
+export function sortTasks(first: NoteSummary, second: NoteSummary): number {
   const firstCompleted = isTodoCompleted(first);
   const secondCompleted = isTodoCompleted(second);
 
@@ -698,7 +705,7 @@ export async function getExistingCalendarNoteMarkers(
   await attachTaskMetadata([...tasksWithMetadata]);
 
   for (const notes of notesByDate.values()) {
-    notes.sort((first, second) => first.title.localeCompare(second.title));
+    notes.sort(compareCalendarNotesByTitle);
   }
 
   for (const tasks of tasksByDate.values()) {
