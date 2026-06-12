@@ -19,6 +19,7 @@ import {
   clearTaskRepeat,
   createCalendarNoteForDate,
   createCalendarTaskForDate,
+  invalidateTaskMetadataCache,
   setCalendarTaskCompleted,
   setTaskRepeat,
   syncCalendarTaskCompletionLocation,
@@ -153,6 +154,8 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMe
 }
 
 async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
+  invalidateTaskMetadataCache(event.id);
+
   try {
     await syncCalendarTaskCompletionLocation(event.id);
   } catch (error) {
@@ -240,6 +243,7 @@ joplin.plugins.register({
     await joplin.workspace.onNoteChange(handleNoteChange);
     await joplin.workspace.onNoteSelectionChange(handleNoteSelectionChange);
     await joplin.workspace.onSyncComplete(async () => {
+      clearCalendarNoteCaches();
       await scheduleCalendarRefresh();
     });
 

@@ -75,6 +75,7 @@ const createFolderIdCache = new Map<string, string | null>();
 const rootFolderIdCache = new Map<string, string | null>();
 const treeIdsByPath = new Map<string, Set<string>>();
 const templateSourceCache = new Map<string, NoteTemplateSource>();
+const taskMetadataCache = new Map<string, TaskMetadata>();
 const processingTaskCompletionNoteIds = new Set<string>();
 
 export function clearCalendarNoteCaches(): void {
@@ -82,6 +83,11 @@ export function clearCalendarNoteCaches(): void {
   rootFolderIdCache.clear();
   treeIdsByPath.clear();
   templateSourceCache.clear();
+  taskMetadataCache.clear();
+}
+
+export function invalidateTaskMetadataCache(noteId: string): void {
+  taskMetadataCache.delete(noteId);
 }
 
 export function buildDayIdentifier(
@@ -198,8 +204,16 @@ async function getNoteBody(noteId: string): Promise<string> {
 }
 
 async function readNoteTaskMetadata(noteId: string): Promise<TaskMetadata> {
+  const cached = taskMetadataCache.get(noteId);
+
+  if (cached) {
+    return cached;
+  }
+
+  let metadata: TaskMetadata;
+
   try {
-    return normalizeTaskMetadata(
+    metadata = normalizeTaskMetadata(
       await joplin.data.userDataGet<TaskMetadata>(
         ModelType.Note,
         noteId,
@@ -207,8 +221,11 @@ async function readNoteTaskMetadata(noteId: string): Promise<TaskMetadata> {
       ),
     );
   } catch {
-    return {};
+    metadata = {};
   }
+
+  taskMetadataCache.set(noteId, metadata);
+  return metadata;
 }
 
 async function writeNoteTaskMetadata(noteId: string, metadata: TaskMetadata): Promise<void> {
@@ -221,6 +238,7 @@ async function writeNoteTaskMetadata(noteId: string, metadata: TaskMetadata): Pr
       TASK_METADATA_USER_DATA_KEY,
       normalized,
     );
+    taskMetadataCache.set(noteId, normalized);
     return;
   }
 
@@ -229,6 +247,7 @@ async function writeNoteTaskMetadata(noteId: string, metadata: TaskMetadata): Pr
     noteId,
     TASK_METADATA_USER_DATA_KEY,
   );
+  taskMetadataCache.set(noteId, normalized);
 }
 
 async function withTaskMetadata(note: NoteSummary): Promise<NoteSummary> {
