@@ -1,6 +1,6 @@
-# Calendar Notes
-
-A Joplin plugin that adds a calendar panel for daily notes.
+<p align="center">
+  <img src="icons/promo.png" alt="Calendar Notes" width="440">
+</p>
 
 ## Features
 
