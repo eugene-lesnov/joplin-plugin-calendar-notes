@@ -145,6 +145,35 @@ document.addEventListener("contextmenu", async (event) => {
   }));
 });
 
+function updateSelectedDayTaskMarker() {
+  const root = document.getElementById(PANEL_ROOT_ID);
+
+  if (!root) {
+    return;
+  }
+
+  const taskItems = root.querySelectorAll(".day-tasks .day-task");
+
+  if (taskItems.length === 0) {
+    return;
+  }
+
+  const marker = root.querySelector(
+    ".day.selected .day-marker.task-open, .day.selected .day-marker.task-done",
+  );
+
+  if (!marker) {
+    return;
+  }
+
+  const allCompleted = Array.from(taskItems).every((item) =>
+    item.classList.contains("completed"),
+  );
+
+  marker.classList.toggle("task-done", allCompleted);
+  marker.classList.toggle("task-open", !allCompleted);
+}
+
 function applyOptimisticTaskToggle(target) {
   if (!(target instanceof HTMLInputElement)) {
     return;
@@ -154,6 +183,8 @@ function applyOptimisticTaskToggle(target) {
   target.checked = completed;
   target.dataset.completed = completed ? "true" : "false";
   target.closest(".day-task")?.classList.toggle("completed", completed);
+
+  updateSelectedDayTaskMarker();
 }
 
 async function handleTaskToggle(target) {
