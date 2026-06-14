@@ -549,11 +549,8 @@ function renderCalendarHtml(
 			<div class="calendar-header">
 				<button class="nav-button" data-action="prevMonth" title="${escapeHtml(strings.previousMonthTitle)}">‹</button>
 				<div class="month-label">${escapeHtml(monthLabel)}</div>
+				<button class="today-button" data-action="today" title="${escapeHtml(strings.todayButtonLabel)}">${escapeHtml(strings.todayButtonLabel)}</button>
 				<button class="nav-button" data-action="nextMonth" title="${escapeHtml(strings.nextMonthTitle)}">›</button>
-			</div>
-
-			<div class="calendar-actions">
-				<button class="today-button" data-action="today">${escapeHtml(strings.todayButtonLabel)}</button>
 			</div>
 
 			<div class="weekdays">

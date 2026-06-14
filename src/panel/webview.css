@@ -33,17 +33,21 @@ button,
 }
 
 .calendar-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto 32px;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     margin-bottom: 8px;
 }
 
 .month-label {
+    min-width: 0;
+    overflow: hidden;
     font-weight: 600;
+    text-overflow: ellipsis;
     text-transform: capitalize;
     text-align: center;
+    white-space: nowrap;
 }
 
 .nav-button,
@@ -63,15 +67,12 @@ button,
     line-height: 20px;
 }
 
-.calendar-actions {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 10px;
-}
-
 .today-button {
-    flex: 1;
-    padding: 6px 8px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
 }
 
 .weekdays,
