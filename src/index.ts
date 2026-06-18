@@ -36,6 +36,7 @@ import {
   renderCalendar,
   scheduleCalendarRefresh,
   selectCalendarDate,
+  showCalendarPanel,
   toggleOverdueTasks,
   setupPanel,
   shouldRefreshCalendarForNoteChange,
@@ -123,6 +124,13 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMe
   }
 
   if (message.name === "setTaskRepeat") {
+    if (await isMobilePlatform()) {
+      await joplin.commands.execute("dismissPluginPanels");
+      await setTaskRepeat(message.id);
+      await showCalendarPanel();
+      return;
+    }
+
     await setTaskRepeat(message.id);
     return renderCalendar();
   }

@@ -66,7 +66,8 @@ const TEXT_PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z]+)\s*\}\}/g;
 const TITLE_DUPLICATE_SUFFIX_SEPARATOR = " ";
 const CALENDAR_PATH_PLACEHOLDER_PATTERN = /\{\{\s*(year|month|quarter|week)\s*\}\}/g;
 const REPEAT_DIALOG_ID = "calendarTaskRepeatDialog";
-
+const REPEAT_FORM_NAME = "repeatForm";
+const REPEAT_INPUT_NAME = "repeat";
 const REPEAT_NONE_VALUE = "none";
 const REPEAT_FREQUENCIES: RepeatFrequency[] = ["daily", "weekly", "monthly", "yearly"];
 
@@ -1197,19 +1198,26 @@ export async function syncCalendarTaskCompletionLocation(noteId: string): Promis
 }
 
 function renderRepeatDialogHtml(currentFrequency: RepeatFrequency | typeof REPEAT_NONE_VALUE): string {
-  const option = (value: RepeatFrequency | typeof REPEAT_NONE_VALUE, label: string) => `
-    <label style="display:block;margin:8px 0;">
-      <input type="radio" name="repeat" value="${value}" ${currentFrequency === value ? "checked" : ""} />
-      ${label}
-    </label>
-  `;
+  const option = (value: RepeatFrequency | typeof REPEAT_NONE_VALUE, label: string) => {
+    const selected = currentFrequency === value;
+
+    return `
+      <label style="display:block;margin:8px 0;">
+        <input type="radio" name="${REPEAT_INPUT_NAME}" value="${value}" ${selected ? "checked autofocus" : ""} />
+        ${label}
+      </label>
+    `;
+  };
 
   return `
-    <form name="repeatForm">
+    <form name="${REPEAT_FORM_NAME}">
       <h2>${strings.taskRepeatDialogTitle}</h2>
       ${option(REPEAT_NONE_VALUE, strings.taskRepeatNoneLabel)}
       ${REPEAT_FREQUENCIES.map((frequency) => option(frequency, getRepeatLabel(frequency))).join("")}
     </form>
+    <script>
+      document.querySelector('input[name="${REPEAT_INPUT_NAME}"]:checked')?.focus();
+    </script>
   `;
 }
 
@@ -1243,7 +1251,7 @@ export async function setTaskRepeat(noteId: string): Promise<void> {
     return;
   }
 
-  const selected = result.formData?.repeatForm?.repeat;
+  const selected = result.formData?.[REPEAT_FORM_NAME]?.[REPEAT_INPUT_NAME];
   const frequency = REPEAT_FREQUENCIES.find((item) => item === selected);
   const nextMetadata: TaskMetadata = frequency
     ? {
