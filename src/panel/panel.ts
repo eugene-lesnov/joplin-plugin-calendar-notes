@@ -17,7 +17,7 @@ import strings, {
 } from "../core/localization";
 import { isMobilePlatform } from "../core/platform";
 import {
-  NOTE_FIELDS,
+  NOTE_LIST_FIELDS,
   buildDayIdentifier,
   compareCalendarNotesByTitle,
   getExistingCalendarNoteMarkers,
@@ -33,6 +33,9 @@ import type {
   CalendarTaskWithDate,
   NoteSummary,
   PanelHtmlMessage,
+  PanelMessage,
+  PatchVisibleNoteMessage,
+  PatchVisibleNotesMessage,
 } from "../core/types";
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
@@ -56,7 +59,7 @@ let renderSeq = 0;
 let panelShellReady = false;
 
 export async function setupPanel(
-  onMessage: (message: CalendarMessage) => Promise<PanelHtmlMessage | void>,
+  onMessage: (message: CalendarMessage) => Promise<PanelMessage | void>,
 ): Promise<void> {
   const now = new Date();
   currentYear = now.getFullYear();
@@ -104,6 +107,11 @@ async function updatePanelHtml(html: string): Promise<PanelHtmlMessage> {
   return message;
 }
 
+function postPanelMessage(message: PanelMessage): PanelMessage {
+  joplin.views.panels.postMessage(panelHandle, message);
+  return message;
+}
+
 async function isPanelVisible(): Promise<boolean> {
   return joplin.views.panels.visible(panelHandle);
 }
@@ -111,7 +119,7 @@ async function isPanelVisible(): Promise<boolean> {
 async function getActiveNote(noteId: string): Promise<NoteSummary | null> {
   try {
     const note = (await joplin.data.get(["notes", noteId], {
-      fields: NOTE_FIELDS,
+      fields: NOTE_LIST_FIELDS,
     })) as NoteSummary;
 
     if (isDeletedNote(note)) {
@@ -659,6 +667,151 @@ export async function scheduleCalendarRefresh(): Promise<void> {
     refreshTimer = null;
     void runCoalescedRefresh();
   }, CALENDAR_REFRESH_DEBOUNCE_MS);
+}
+
+function findVisibleNoteInCache(noteId: string, dateId: string): NoteSummary | null {
+  const note = visibleNotesByDate.get(dateId)?.find((item) => item.id === noteId);
+  const task = visibleTasksByDate.get(dateId)?.find((item) => item.id === noteId);
+  const overdueTask = visibleOverdueTasks.find((item) => item.task.id === noteId)?.task;
+
+  return note ?? task ?? overdueTask ?? null;
+}
+
+function canPatchVisibleNote(previous: NoteSummary, next: NoteSummary): boolean {
+  return previous.is_todo === next.is_todo
+    && previous.parent_id === next.parent_id
+    && previous.todo_completed === next.todo_completed
+    && previous.todo_due === next.todo_due;
+}
+
+function updateVisibleNoteCache(note: NoteSummary, dateId: string): void {
+  const updateItems = (items: NoteSummary[]) =>
+    items.map((item) => item.id === note.id ? { ...item, ...note } : item);
+
+  visibleNotesByDate.set(dateId, updateItems(visibleNotesByDate.get(dateId) ?? []));
+  visibleTasksByDate.set(dateId, updateItems(visibleTasksByDate.get(dateId) ?? []));
+  visibleOverdueTasks = visibleOverdueTasks.map((item) =>
+    item.task.id === note.id ? { ...item, task: { ...item.task, ...note } } : item,
+  );
+}
+
+function makePatchVisibleNoteMessage(
+  note: NoteSummary,
+  dateId: string,
+  settings: CalendarSettings,
+): PatchVisibleNoteMessage {
+  const text = note.is_todo === 1
+    ? stripDayIdentifierFromTitle(note.title, dateId, settings)
+    : note.title;
+  const overdueText = note.is_todo === 1
+    ? `${formatTaskDateLabel(dateId)} ${text}`
+    : text;
+
+  return {
+    name: "patchVisibleNote",
+    id: note.id,
+    title: note.title,
+    text,
+    overdueText,
+  };
+}
+
+export async function patchVisibleCalendarNotes(
+  noteIds: readonly string[],
+): Promise<PanelMessage | void> {
+  if (!(await isPanelVisible())) {
+    return;
+  }
+
+  const settings = await getCalendarSettings();
+  const patches: PatchVisibleNoteMessage[] = [];
+
+  for (const noteId of noteIds) {
+    const currentDateId = visibleCalendarNoteDatesById.get(noteId);
+
+    if (!currentDateId) {
+      continue;
+    }
+
+    const previous = findVisibleNoteInCache(noteId, currentDateId);
+    const note = await getActiveNote(noteId);
+
+    if (!previous || !note) {
+      return renderCalendar();
+    }
+
+    const nextDateId = resolveCalendarNoteDateId(
+      note.title,
+      currentYear,
+      currentMonth,
+      settings,
+    );
+
+    if (nextDateId !== currentDateId || !canPatchVisibleNote(previous, note)) {
+      return renderCalendar();
+    }
+
+    if (previous.title !== note.title) {
+      updateVisibleNoteCache(note, currentDateId);
+      patches.push(makePatchVisibleNoteMessage(note, currentDateId, settings));
+    }
+  }
+
+  if (patches.length === 0) {
+    return;
+  }
+
+  const message: PatchVisibleNotesMessage = {
+    name: "patchVisibleNotes",
+    patches,
+  };
+
+  return message;
+}
+
+export async function patchVisibleCalendarNoteChange(
+  noteId: string,
+  eventType: number,
+): Promise<boolean> {
+  if (!(await isPanelVisible())) {
+    return true;
+  }
+
+  const currentDateId = visibleCalendarNoteDatesById.get(noteId);
+
+  if (!currentDateId) {
+    return false;
+  }
+
+  if (eventType === NOTE_CHANGE_DELETE_EVENT) {
+    await renderCalendar();
+    return true;
+  }
+
+  const note = await getActiveNote(noteId);
+
+  if (!note) {
+    await renderCalendar();
+    return true;
+  }
+
+  const settings = await getCalendarSettings();
+  const previous = findVisibleNoteInCache(noteId, currentDateId);
+  const nextDateId = resolveCalendarNoteDateId(
+    note.title,
+    currentYear,
+    currentMonth,
+    settings,
+  );
+
+  if (!previous || nextDateId !== currentDateId || !canPatchVisibleNote(previous, note)) {
+    await renderCalendar();
+    return true;
+  }
+
+  updateVisibleNoteCache(note, currentDateId);
+  postPanelMessage(makePatchVisibleNoteMessage(note, currentDateId, settings));
+  return true;
 }
 
 export async function isVisibleCalendarNote(noteId: string): Promise<boolean> {

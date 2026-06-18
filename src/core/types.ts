@@ -24,12 +24,28 @@ export type CalendarMessage =
   | { name: "prevMonth" }
   | { name: "nextMonth" }
   | { name: "today" }
-  | { name: "refresh" };
+  | { name: "refresh" }
+  | { name: "patchVisibleNotes"; ids: string[] };
 
 export type PanelHtmlMessage = {
   name: "setPanelHtml";
   html: string;
 };
+
+export type PatchVisibleNoteMessage = {
+  name: "patchVisibleNote";
+  id: string;
+  title: string;
+  text: string;
+  overdueText: string;
+};
+
+export type PatchVisibleNotesMessage = {
+  name: "patchVisibleNotes";
+  patches: PatchVisibleNoteMessage[];
+};
+
+export type PanelMessage = PanelHtmlMessage | PatchVisibleNoteMessage | PatchVisibleNotesMessage;
 
 export type NoteSummary = {
   id: string;

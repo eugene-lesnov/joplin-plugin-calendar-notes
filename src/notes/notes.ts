@@ -48,16 +48,19 @@ import type {
 } from "../core/types";
 
 const NOTE_PAGE_LIMIT = 100;
-export const NOTE_FIELDS = [
+export const NOTE_LIST_FIELDS = [
   "id",
   "title",
   "parent_id",
-  "body",
   "deleted_time",
   "created_time",
   "is_todo",
   "todo_completed",
   "todo_due",
+];
+export const NOTE_FIELDS = [
+  ...NOTE_LIST_FIELDS,
+  "body",
 ];
 
 const DAY_IDENTIFIER_PLACEHOLDER_REPLACEMENT_PATTERN = /\{\{\s*dayIdentifier\s*\}\}/g;
@@ -145,7 +148,7 @@ async function findNoteByExactTitleInFolder(
 
   while (true) {
     const response = await joplin.data.get(["folders", folderId, "notes"], {
-      fields: NOTE_FIELDS,
+      fields: NOTE_LIST_FIELDS,
       limit: NOTE_PAGE_LIMIT,
       page,
     });
@@ -174,7 +177,7 @@ async function findNoteByExactTitleAnywhere(
 
   while (true) {
     const response = await joplin.data.get(["notes"], {
-      fields: NOTE_FIELDS,
+      fields: NOTE_LIST_FIELDS,
       limit: NOTE_PAGE_LIMIT,
       page,
     });
@@ -617,7 +620,7 @@ async function scanFolderNotes(
 
   while (true) {
     const response = await joplin.data.get(["folders", folderId, "notes"], {
-      fields: NOTE_FIELDS,
+      fields: NOTE_LIST_FIELDS,
       limit: NOTE_PAGE_LIMIT,
       page,
     });
@@ -1018,7 +1021,7 @@ async function findRepeatedTaskByDate(
 
     while (true) {
       const response = await joplin.data.get(["folders", folderId, "notes"], {
-        fields: NOTE_FIELDS,
+        fields: NOTE_LIST_FIELDS,
         limit: NOTE_PAGE_LIMIT,
         page,
       });

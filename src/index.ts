@@ -32,6 +32,8 @@ import {
   goToToday,
   hasStaleVisibleCalendarNoteMarkers,
   isVisibleCalendarNote,
+  patchVisibleCalendarNoteChange,
+  patchVisibleCalendarNotes,
   refreshVisibleCalendar,
   renderCalendar,
   scheduleCalendarRefresh,
@@ -47,7 +49,7 @@ import type {
   CalendarMessage,
   NoteChangeEvent,
   NoteSelectionChangeEvent,
-  PanelHtmlMessage,
+  PanelMessage,
 } from "./core/types";
 
 const TOGGLE_COMMAND = "toggleCalendarNotes";
@@ -81,7 +83,7 @@ async function enqueueTaskCompletion(operation: () => Promise<void>): Promise<vo
   return nextOperation;
 }
 
-async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMessage | void> {
+async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessage | void> {
   if (message.name === "selectDate") {
     return selectCalendarDate(message.date);
   }
@@ -159,6 +161,10 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelHtmlMe
   if (message.name === "refresh") {
     return refreshVisibleCalendar();
   }
+
+  if (message.name === "patchVisibleNotes") {
+    return patchVisibleCalendarNotes(message.ids);
+  }
 }
 
 async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
@@ -168,6 +174,10 @@ async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
     await syncCalendarTaskCompletionLocation(event.id);
   } catch (error) {
     console.warn("Failed to sync calendar task completion location.", error);
+  }
+
+  if (await patchVisibleCalendarNoteChange(event.id, event.event)) {
+    return;
   }
 
   if (await shouldRefreshCalendarForNoteChange(event.id, event.event)) {

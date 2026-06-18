@@ -1,11 +1,18 @@
 const CREATE_ACTIONS = new Set(["createNote", "createTask"]);
 const PANEL_ROOT_ID = "calendar-notes-root";
 const REFRESH_INTERVAL_MS = 15000;
+const VISIBLE_NOTES_PATCH_FAST_INTERVAL_MS = 750;
+const VISIBLE_NOTES_PATCH_IDLE_INTERVAL_MS = 5000;
+const VISIBLE_NOTES_PATCH_FAST_WINDOW_MS = 15000;
+const VISIBLE_NOTES_PATCH_MAX_IDS = 30;
 
 let lastPanelHtml = "";
 let pendingCreateCount = 0;
 let queuedPanelHtml = null;
 let panelVersion = 0;
+let visibleNotesPatchInFlight = false;
+let visibleNotesPatchTimer = null;
+let visibleNotesPatchFastUntil = 0;
 
 function applyPanelHtml(html) {
   const root = document.getElementById(PANEL_ROOT_ID);
@@ -17,7 +24,34 @@ function applyPanelHtml(html) {
   lastPanelHtml = html;
 }
 
+function applyVisibleNotePatch(message) {
+  const items = document.querySelectorAll(".task-title[data-note-id], .day-note[data-note-id]");
+
+  for (const item of items) {
+    if (item.dataset.noteId !== message.id) {
+      continue;
+    }
+
+    item.title = message.title;
+    item.textContent = item.closest(".overdue-task-list")
+      ? message.overdueText
+      : message.text;
+  }
+}
+
 function applyPanelResponse(response, force = false) {
+  if (response?.name === "patchVisibleNote") {
+    applyVisibleNotePatch(response);
+    return;
+  }
+
+  if (response?.name === "patchVisibleNotes") {
+    for (const patch of response.patches) {
+      applyVisibleNotePatch(patch);
+    }
+    return;
+  }
+
   if (response?.name !== "setPanelHtml") {
     return;
   }
@@ -29,12 +63,68 @@ function applyPanelResponse(response, force = false) {
 
   queuedPanelHtml = null;
   applyPanelHtml(response.html);
+  activateFastVisibleNotesPatchWindow();
 }
 
 function applyQueuedPanelHtml() {
   if (pendingCreateCount === 0 && queuedPanelHtml !== null) {
     applyPanelHtml(queuedPanelHtml);
     queuedPanelHtml = null;
+  }
+}
+
+function activateFastVisibleNotesPatchWindow() {
+  visibleNotesPatchFastUntil = Date.now() + VISIBLE_NOTES_PATCH_FAST_WINDOW_MS;
+}
+
+function getVisibleNoteIds() {
+  return Array.from(
+    new Set(
+      Array.from(document.querySelectorAll(".task-title[data-note-id], .day-note[data-note-id]"))
+        .map((item) => item.dataset.noteId)
+        .filter(Boolean),
+    ),
+  ).slice(0, VISIBLE_NOTES_PATCH_MAX_IDS);
+}
+
+function scheduleVisibleNotesPatch() {
+  if (visibleNotesPatchTimer !== null) {
+    clearTimeout(visibleNotesPatchTimer);
+  }
+
+  const interval = Date.now() < visibleNotesPatchFastUntil
+    ? VISIBLE_NOTES_PATCH_FAST_INTERVAL_MS
+    : VISIBLE_NOTES_PATCH_IDLE_INTERVAL_MS;
+
+  visibleNotesPatchTimer = setTimeout(() => {
+    visibleNotesPatchTimer = null;
+    void patchVisibleNotes();
+  }, interval);
+}
+
+async function patchVisibleNotes() {
+  if (document.hidden || pendingCreateCount > 0 || visibleNotesPatchInFlight) {
+    scheduleVisibleNotesPatch();
+    return;
+  }
+
+  const ids = getVisibleNoteIds();
+
+  if (ids.length === 0) {
+    scheduleVisibleNotesPatch();
+    return;
+  }
+
+  visibleNotesPatchInFlight = true;
+
+  try {
+    applyPanelResponse(await webviewApi.postMessage({
+      name: "patchVisibleNotes",
+      ids,
+    }));
+  } finally {
+    visibleNotesPatchInFlight = false;
+    scheduleVisibleNotesPatch();
   }
 }
 
@@ -190,23 +280,68 @@ function updateSelectedDayTaskMarker() {
   marker.classList.toggle("task-open", !allCompleted);
 }
 
-function applyOptimisticTaskToggle(target) {
-  if (!(target instanceof HTMLInputElement)) {
+function createReadonlyRepeatLabel(button) {
+  const label = document.createElement("span");
+  label.className = "task-repeat-label active";
+  label.title = button.title.split(".")[0] || button.title;
+  label.textContent = button.textContent;
+  return label;
+}
+
+function updateOptimisticRepeatControl(taskItem, completed) {
+  const repeatControl = taskItem?.querySelector(".task-repeat-button");
+
+  if (!repeatControl || !completed) {
     return;
   }
 
-  const completed = target.dataset.completed !== "true";
-  target.checked = completed;
-  target.dataset.completed = completed ? "true" : "false";
-  target.closest(".day-task")?.classList.toggle("completed", completed);
+  if (repeatControl.classList.contains("active")) {
+    repeatControl.replaceWith(createReadonlyRepeatLabel(repeatControl));
+    return;
+  }
 
+  repeatControl.remove();
+}
+
+function revertOptimisticTaskToggle(target, wasCompleted) {
+  const taskItem = target.closest(".day-task");
+  target.checked = wasCompleted;
+  target.disabled = false;
+  target.dataset.completed = wasCompleted ? "true" : "false";
+  taskItem?.classList.toggle("completed", wasCompleted);
+  taskItem?.removeAttribute("data-pending");
   updateSelectedDayTaskMarker();
 }
 
+function applyOptimisticTaskToggle(target) {
+  if (!(target instanceof HTMLInputElement)) {
+    return false;
+  }
+
+  const taskItem = target.closest(".day-task");
+  const completed = target.dataset.completed !== "true";
+
+  target.checked = completed;
+  target.disabled = true;
+  target.dataset.completed = completed ? "true" : "false";
+  taskItem?.classList.toggle("completed", completed);
+  taskItem?.setAttribute("data-pending", "true");
+  updateOptimisticRepeatControl(taskItem, completed);
+
+  updateSelectedDayTaskMarker();
+  return true;
+}
+
 async function handleTaskToggle(target) {
+  if (target.disabled || target.closest(".day-task")?.dataset.pending === "true") {
+    return;
+  }
+
   const wasCompleted = target.dataset.completed === "true";
 
-  applyOptimisticTaskToggle(target);
+  if (!applyOptimisticTaskToggle(target)) {
+    return;
+  }
   panelVersion += 1;
   const requestVersion = panelVersion;
 
@@ -224,6 +359,7 @@ async function handleTaskToggle(target) {
     console.error("Failed to toggle calendar task.", error);
 
     if (requestVersion === panelVersion) {
+      revertOptimisticTaskToggle(target, wasCompleted);
       applyPanelResponse(await webviewApi.postMessage({ name: "refresh" }), true);
     }
   }
@@ -235,6 +371,8 @@ async function handleAction(target) {
   if (typeof target.blur === "function") {
     target.blur();
   }
+
+  activateFastVisibleNotesPatchWindow();
 
   if (CREATE_ACTIONS.has(action)) {
     void createOptimistically(target, action);
@@ -338,7 +476,9 @@ document.addEventListener("keydown", async (event) => {
 
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
+    activateFastVisibleNotesPatchWindow();
     void refreshPanel();
+    void patchVisibleNotes();
   }
 });
 
@@ -347,7 +487,13 @@ setInterval(() => {
 }, REFRESH_INTERVAL_MS);
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => void refreshPanel());
+  document.addEventListener("DOMContentLoaded", () => {
+    activateFastVisibleNotesPatchWindow();
+    void refreshPanel();
+    scheduleVisibleNotesPatch();
+  });
 } else {
+  activateFastVisibleNotesPatchWindow();
   void refreshPanel();
+  scheduleVisibleNotesPatch();
 }

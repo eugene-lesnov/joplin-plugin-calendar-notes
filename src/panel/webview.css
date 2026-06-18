@@ -241,7 +241,8 @@ button,
     line-height: 1;
 }
 
-#calendar-notes-root[data-mobile="true"] .task-repeat-button {
+#calendar-notes-root[data-mobile="true"] .task-repeat-button,
+#calendar-notes-root[data-mobile="true"] .task-repeat-label {
     min-width: 36px;
     height: 36px;
     min-height: 36px;
@@ -357,7 +358,8 @@ button,
     white-space: nowrap;
 }
 
-.task-repeat-button {
+.task-repeat-button,
+.task-repeat-label {
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
@@ -366,27 +368,29 @@ button,
     border-radius: 6px;
     background: transparent;
     color: var(--joplin-color);
-    cursor: pointer;
     font-family: inherit;
     opacity: 0.45;
     padding: 2px 4px;
 }
 
-.task-repeat-button.active,
-.task-repeat-label.active {
+.task-repeat-button {
+    cursor: pointer;
+}
+
+.task-repeat-button.active {
     opacity: 0.75;
 }
 
-.task-repeat-label {
-    color: var(--joplin-color);
+.task-repeat-label.active {
+    opacity: 0.55;
 }
 
-.calendar-root .task-repeat-button {
+.calendar-root .task-repeat-button,
+.calendar-root .task-repeat-label {
     justify-content: center;
     font-size: 12px;
     line-height: 1.2;
     padding: 3px 8px;
-    opacity: 0.75;
 }
 
 .task-repeat-button:hover {
