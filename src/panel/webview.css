@@ -23,6 +23,7 @@ button,
     --calendar-note-marker-color: #9ca3af;
     --calendar-open-task-marker-color: var(--joplin-color-warn, #d97706);
     --calendar-completed-task-marker-color: #22c55e;
+    --calendar-repeat-muted-color: color-mix(in srgb, var(--joplin-color) 45%, var(--joplin-background-color));
 
     box-sizing: border-box;
     padding: 12px;
@@ -248,7 +249,6 @@ button,
     min-height: 36px;
     justify-content: center;
     font-size: 18px;
-    opacity: 0.75;
 }
 
 .selected-day,
@@ -383,6 +383,11 @@ button,
 
 .task-repeat-label.active {
     opacity: 0.55;
+}
+
+.day-task.completed .task-repeat-button:not(.active) {
+    color: var(--calendar-repeat-muted-color);
+    opacity: 0.3;
 }
 
 .calendar-root .task-repeat-button,
