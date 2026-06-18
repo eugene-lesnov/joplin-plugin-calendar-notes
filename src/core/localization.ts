@@ -49,6 +49,7 @@ export interface AppLocalization {
   newTaskDefaultTitle: string;
   taskRepeatDialogTitle: string;
   taskRepeatNoneLabel: string;
+  taskRepeatSetHint: string;
   taskRepeatDailyLabel: string;
   taskRepeatWeeklyLabel: string;
   taskRepeatMonthlyLabel: string;
@@ -120,6 +121,7 @@ const defaultStrings: AppLocalization = {
   newTaskDefaultTitle: "New task",
   taskRepeatDialogTitle: "Task repeat",
   taskRepeatNoneLabel: "Do not repeat",
+  taskRepeatSetHint: "Set repeat",
   taskRepeatDailyLabel: "Every day",
   taskRepeatWeeklyLabel: "Every week",
   taskRepeatMonthlyLabel: "Every month",
@@ -193,6 +195,7 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     newTaskDefaultTitle: "Новая задача",
     taskRepeatDialogTitle: "Повтор задачи",
     taskRepeatNoneLabel: "Не повторять",
+    taskRepeatSetHint: "Установить повтор",
     taskRepeatDailyLabel: "Каждый день",
     taskRepeatWeeklyLabel: "Каждую неделю",
     taskRepeatMonthlyLabel: "Каждый месяц",

@@ -241,7 +241,7 @@ function renderTaskRepeatHtml(task: NoteSummary): string {
       data-action="setTaskRepeat"
       data-note-id="${escapeHtml(task.id)}"
       data-can-clear-repeat="false"
-      title="${escapeHtml(strings.taskRepeatNoneLabel)}"
+      title="${escapeHtml(strings.taskRepeatSetHint)}"
     >↻</span>`;
   }
 
