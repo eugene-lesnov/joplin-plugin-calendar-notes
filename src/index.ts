@@ -176,7 +176,7 @@ async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
     console.warn("Failed to sync calendar task completion location.", error);
   }
 
-  if (await patchVisibleCalendarNoteChange(event.id, event.event)) {
+  if ((await isMobilePlatform()) && await patchVisibleCalendarNoteChange(event.id, event.event)) {
     return;
   }
 

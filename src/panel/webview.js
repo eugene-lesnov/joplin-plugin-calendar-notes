@@ -74,6 +74,10 @@ function applyQueuedPanelHtml() {
 }
 
 function activateFastVisibleNotesPatchWindow() {
+  if (!isMobilePanel()) {
+    return;
+  }
+
   visibleNotesPatchFastUntil = Date.now() + VISIBLE_NOTES_PATCH_FAST_WINDOW_MS;
 }
 
@@ -92,6 +96,11 @@ function scheduleVisibleNotesPatch() {
     clearTimeout(visibleNotesPatchTimer);
   }
 
+  if (!isMobilePanel()) {
+    visibleNotesPatchTimer = null;
+    return;
+  }
+
   const interval = Date.now() < visibleNotesPatchFastUntil
     ? VISIBLE_NOTES_PATCH_FAST_INTERVAL_MS
     : VISIBLE_NOTES_PATCH_IDLE_INTERVAL_MS;
@@ -103,7 +112,7 @@ function scheduleVisibleNotesPatch() {
 }
 
 async function patchVisibleNotes() {
-  if (document.hidden || pendingCreateCount > 0 || visibleNotesPatchInFlight) {
+  if (!isMobilePanel() || document.hidden || pendingCreateCount > 0 || visibleNotesPatchInFlight) {
     scheduleVisibleNotesPatch();
     return;
   }
@@ -478,7 +487,9 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     activateFastVisibleNotesPatchWindow();
     void refreshPanel();
-    void patchVisibleNotes();
+    if (isMobilePanel()) {
+      void patchVisibleNotes();
+    }
   }
 });
 
