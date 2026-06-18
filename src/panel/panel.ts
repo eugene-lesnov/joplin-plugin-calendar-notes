@@ -230,10 +230,14 @@ function formatTaskDateLabel(dateId: string): string {
   return year === currentYear ? `${day}.${month}` : `${day}.${month}.${year}`;
 }
 
-function renderTaskRepeatHtml(task: NoteSummary): string {
+function renderTaskRepeatHtml(task: NoteSummary, completed: boolean): string {
   const repeat = task.metadata?.repeat;
 
   if (!repeat) {
+    if (completed) {
+      return "";
+    }
+
     return `<span
       role="button"
       tabindex="0"
@@ -246,7 +250,16 @@ function renderTaskRepeatHtml(task: NoteSummary): string {
   }
 
   const label = getRepeatLabel(repeat.frequency);
-  const title = `${formatLocalizedString(strings.taskRepeatMetaLabel, { repeat: label })}. ${strings.taskRepeatClearHint}`;
+  const repeatTitle = formatLocalizedString(strings.taskRepeatMetaLabel, { repeat: label });
+
+  if (completed) {
+    return `<span
+      class="task-repeat-label active"
+      title="${escapeHtml(repeatTitle)}"
+    >↻ ${escapeHtml(label)}</span>`;
+  }
+
+  const title = `${repeatTitle}. ${strings.taskRepeatClearHint}`;
 
   return `<span
     role="button"
@@ -285,7 +298,7 @@ function renderTaskItemHtml(
 ): string {
   const completed = isTaskCompleted(task);
   const alarmHtml = renderTaskAlarmHtml(task, completed, dateId);
-  const repeatHtml = renderTaskRepeatHtml(task);
+  const repeatHtml = renderTaskRepeatHtml(task, completed);
   const visibleTitle = datePrefix ? `${datePrefix} ${title}` : title;
 
   return `<li class="day-task ${completed ? "completed" : ""}">

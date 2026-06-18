@@ -350,6 +350,7 @@ button,
 }
 
 .task-repeat-button,
+.task-repeat-label,
 .task-alarm {
     flex: 0 0 auto;
     font-size: 11px;
@@ -371,8 +372,13 @@ button,
     padding: 2px 4px;
 }
 
-.task-repeat-button.active {
+.task-repeat-button.active,
+.task-repeat-label.active {
     opacity: 0.75;
+}
+
+.task-repeat-label {
+    color: var(--joplin-color);
 }
 
 .calendar-root .task-repeat-button {

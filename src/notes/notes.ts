@@ -1230,11 +1230,22 @@ async function getRepeatDialogHandle(): Promise<string> {
 }
 
 export async function clearTaskRepeat(noteId: string): Promise<void> {
+  const task = await getNoteWithBody(noteId);
+
+  if (isDeletedNote(task) || !isTodoNote(task) || isTodoCompleted(task)) {
+    return;
+  }
+
   await writeNoteTaskMetadata(noteId, {});
 }
 
 export async function setTaskRepeat(noteId: string): Promise<void> {
   const task = await getNoteWithBody(noteId);
+
+  if (isDeletedNote(task) || !isTodoNote(task) || isTodoCompleted(task)) {
+    return;
+  }
+
   const metadata = getTaskMetadata(task);
   const currentFrequency = metadata.repeat?.frequency ?? REPEAT_NONE_VALUE;
   const dialog = await getRepeatDialogHandle();
