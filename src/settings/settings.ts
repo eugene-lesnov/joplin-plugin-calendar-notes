@@ -26,6 +26,7 @@ import {
   SETTING_NOTE_TEMPLATE_PATH,
   SETTING_TASKS_PATH,
   SETTING_TASK_TEMPLATE_PATH,
+  SETTING_TAGGED_TASKS_TAGS,
   SETTING_WEEK_START,
 } from "../core/constants";
 import { weekdayLongName } from "../core/dateUtils";
@@ -68,6 +69,10 @@ function normalizeTemplatePath(value: unknown): string {
   return String(value ?? "").trim();
 }
 
+function normalizeTaggedTasksTags(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
 export async function getCalendarSettings(): Promise<CalendarSettings> {
   const values = await joplin.settings.values([
     SETTING_DAY_IDENTIFIER_FORMAT,
@@ -79,6 +84,7 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
     SETTING_TASKS_PATH,
     SETTING_COMPLETED_TASKS_PATH,
     SETTING_TASK_TEMPLATE_PATH,
+    SETTING_TAGGED_TASKS_TAGS,
   ]);
 
   return {
@@ -106,6 +112,7 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
       strings.defaultCompletedTasksPath,
     ),
     taskTemplatePath: normalizeTemplatePath(values[SETTING_TASK_TEMPLATE_PATH]),
+    taggedTasksTags: normalizeTaggedTasksTags(values[SETTING_TAGGED_TASKS_TAGS]),
   };
 }
 
@@ -215,6 +222,15 @@ export async function registerSettings(): Promise<void> {
       public: true,
       label: strings.taskTemplateLabel,
       description: strings.taskTemplateDescription,
+    },
+
+    [SETTING_TAGGED_TASKS_TAGS]: {
+      value: "",
+      type: SettingItemType.String,
+      section: SETTINGS_SECTION,
+      public: true,
+      label: strings.taggedTasksSettingsLabel,
+      description: strings.taggedTasksSettingsDescription,
     },
   });
 }

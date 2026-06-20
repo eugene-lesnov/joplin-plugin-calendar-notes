@@ -21,6 +21,8 @@ export type CalendarMessage =
   | { name: "setTaskRepeat"; id: string }
   | { name: "clearTaskRepeat"; id: string }
   | { name: "toggleOverdueTasks" }
+  | { name: "toggleTaggedTasks" }
+  | { name: "toggleTaggedTaskGroup"; tagId: string }
   | { name: "prevMonth" }
   | { name: "nextMonth" }
   | { name: "today" }
@@ -88,6 +90,16 @@ export type FolderSummary = {
   parent_id?: string;
 };
 
+export type TaggedTaskGroup = {
+  tagId: string;
+  tagName: string;
+  tasks: NoteSummary[];
+};
+
+export type TaggedTasksResult = {
+  groups: TaggedTaskGroup[];
+};
+
 export type CalendarSettings = {
   dayIdentifierFormat: string;
   newNoteTitleFormat: string;
@@ -98,6 +110,7 @@ export type CalendarSettings = {
   tasksPath: string;
   completedTasksPath: string;
   taskTemplatePath: string;
+  taggedTasksTags: string;
 };
 
 export type CalendarDate = {

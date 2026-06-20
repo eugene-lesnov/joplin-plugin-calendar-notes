@@ -60,6 +60,9 @@ export interface AppLocalization {
   createCalendarNoteNoNotebookError: string;
   createCalendarNoteTemplateReadError: string;
   createCalendarTaskTemplateReadError: string;
+  taggedTasksSectionLabel: string;
+  taggedTasksSettingsLabel: string;
+  taggedTasksSettingsDescription: string;
 }
 
 const PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
@@ -135,6 +138,10 @@ const defaultStrings: AppLocalization = {
     "Cannot create a calendar note: failed to find or read template note {{path}}.",
   createCalendarTaskTemplateReadError:
     "Cannot create a calendar task: failed to find or read template note {{path}}.",
+  taggedTasksSectionLabel: "Tasks without date",
+  taggedTasksSettingsLabel: "Tasks: tags (without date)",
+  taggedTasksSettingsDescription:
+    "Comma-separated tag names to show tasks without due date. Example: Watch,Read",
 };
 
 const localizations: Record<string, Partial<AppLocalization>> = {
@@ -208,6 +215,10 @@ const localizations: Record<string, Partial<AppLocalization>> = {
       "Не удалось создать календарную заметку: не получилось найти или прочитать заметку-шаблон {{path}}",
     createCalendarTaskTemplateReadError:
       "Не удалось создать календарную задачу: не получилось найти или прочитать заметку-шаблон {{path}}",
+    taggedTasksSectionLabel: "Задачи без даты",
+    taggedTasksSettingsLabel: "Задачи: теги (без даты)",
+    taggedTasksSettingsDescription:
+      "Теги через запятую для отображения задач без даты. Пример: Посмотреть,Сделать,Прочитать",
   },
 };
 

@@ -44,6 +44,8 @@ import type {
   ExistingCalendarNoteMarkers,
   NoteSummary,
   RepeatFrequency,
+  TaggedTaskGroup,
+  TaggedTasksResult,
   TaskMetadata,
 } from "../core/types";
 
@@ -92,6 +94,155 @@ export function clearCalendarNoteCaches(): void {
 
 export function invalidateTaskMetadataCache(noteId: string): void {
   taskMetadataCache.delete(noteId);
+}
+
+type TagSummary = { id: string; title: string };
+
+function parseTaggedTaskTagNames(value: string): Set<string> {
+  return new Set(
+    value
+      .split(",")
+      .map((name) => name.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+function isTaggedTaskCandidate(note: NoteSummary, settings: CalendarSettings): boolean {
+  return isTodoNote(note)
+    && !note.todo_due
+    && !isDeletedNote(note)
+    && !resolveAnyCalendarNoteDateId(note.title, settings);
+}
+
+function buildTagGroupId(tags: readonly TagSummary[]): string {
+  return tags.map((tag) => tag.id).sort().join(",");
+}
+
+async function getRequestedTags(
+  tagNames: ReadonlySet<string>,
+): Promise<Map<string, TagSummary[]>> {
+  const tagsByName = new Map<string, TagSummary[]>();
+  let page = 1;
+
+  while (true) {
+    const response = await joplin.data.get(["tags"], {
+      fields: ["id", "title"],
+      limit: NOTE_PAGE_LIMIT,
+      page,
+    });
+
+    for (const tag of response.items as TagSummary[]) {
+      const tagName = tag.title.toLowerCase();
+
+      if (tagNames.has(tagName)) {
+        const tags = tagsByName.get(tagName) ?? [];
+        tags.push(tag);
+        tagsByName.set(tagName, tags);
+      }
+    }
+
+    if (!response.has_more) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return tagsByName;
+}
+
+async function getTaggedTodoNotes(
+  tags: readonly TagSummary[],
+  settings: CalendarSettings,
+): Promise<NoteSummary[]> {
+  const tasksById = new Map<string, NoteSummary>();
+
+  for (const tag of tags) {
+    let tagPage = 1;
+
+    while (true) {
+      const response = await joplin.data.get(["tags", tag.id, "notes"], {
+        fields: NOTE_LIST_FIELDS,
+        limit: NOTE_PAGE_LIMIT,
+        page: tagPage,
+      });
+
+      for (const note of response.items as NoteSummary[]) {
+        if (isTaggedTaskCandidate(note, settings)) {
+          tasksById.set(note.id, note);
+        }
+      }
+
+      if (!response.has_more) {
+        break;
+      }
+
+      tagPage += 1;
+    }
+  }
+
+  return [...tasksById.values()];
+}
+
+export async function getTaggedTasks(settings: CalendarSettings): Promise<TaggedTasksResult> {
+  const tagNames = parseTaggedTaskTagNames(settings.taggedTasksTags);
+
+  if (tagNames.size === 0) {
+    return { groups: [] };
+  }
+
+  const tagsByName = await getRequestedTags(tagNames);
+  const groups: TaggedTaskGroup[] = [];
+
+  for (const tagName of tagNames) {
+    const tags = tagsByName.get(tagName) ?? [];
+
+    if (tags.length === 0) {
+      continue;
+    }
+
+    const tasks = await getTaggedTodoNotes(tags, settings);
+
+    if (tasks.length > 0) {
+      await attachTaskMetadata(tasks);
+      groups.push({
+        tagId: buildTagGroupId(tags),
+        tagName: tags[0].title,
+        tasks: tasks.sort(sortTasks),
+      });
+    }
+  }
+
+  return { groups };
+}
+
+export async function getTaggedTasksSignature(settings: CalendarSettings): Promise<string> {
+  const tagNames = parseTaggedTaskTagNames(settings.taggedTasksTags);
+
+  if (tagNames.size === 0) {
+    return "";
+  }
+
+  const tagsByName = await getRequestedTags(tagNames);
+  const signatures: string[] = [];
+
+  for (const tagName of tagNames) {
+    const tags = tagsByName.get(tagName) ?? [];
+
+    if (tags.length === 0) {
+      continue;
+    }
+
+    const taskSignatures = (await getTaggedTodoNotes(tags, settings))
+      .map((note) => `${note.id}:${note.title}:${note.todo_completed ?? 0}`)
+      .sort();
+
+    if (taskSignatures.length > 0) {
+      signatures.push(`${buildTagGroupId(tags)}:${tags[0].title}#${taskSignatures.join("|")}`);
+    }
+  }
+
+  return signatures.join("~");
 }
 
 export function buildDayIdentifier(

@@ -13,6 +13,7 @@ export const SETTING_NOTE_TEMPLATE_PATH = "noteTemplatePath";
 export const SETTING_TASKS_PATH = "tasksPath";
 export const SETTING_COMPLETED_TASKS_PATH = "completedTasksPath";
 export const SETTING_TASK_TEMPLATE_PATH = "taskTemplatePath";
+export const SETTING_TAGGED_TASKS_TAGS = "taggedTasksTags";
 
 export const DAY_IDENTIFIER_FORMAT_DOTS = "{{dd.mm.YYYY}}";
 export const DAY_IDENTIFIER_FORMAT_ISO = "{{YYYY-MM-dd}}";

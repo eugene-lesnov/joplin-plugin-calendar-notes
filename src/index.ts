@@ -10,6 +10,7 @@ import {
   SETTING_NOTE_TEMPLATE_PATH,
   SETTING_TASKS_PATH,
   SETTING_TASK_TEMPLATE_PATH,
+  SETTING_TAGGED_TASKS_TAGS,
   SETTING_WEEK_START,
 } from "./core/constants";
 import strings, { getLocales, setLocale } from "./core/localization";
@@ -25,6 +26,7 @@ import {
   syncCalendarTaskCompletionLocation,
 } from "./notes/notes";
 import {
+  activateFastTaggedTasksPolling,
   addCreatedCalendarNote,
   addCreatedCalendarTask,
   goToNextMonth,
@@ -38,11 +40,13 @@ import {
   renderCalendar,
   scheduleCalendarRefresh,
   selectCalendarDate,
+  shouldRefreshCalendarForNoteChange,
   showCalendarPanel,
   toggleOverdueTasks,
   setupPanel,
-  shouldRefreshCalendarForNoteChange,
   toggleCalendarPanel,
+  toggleTaggedTaskGroup,
+  toggleTaggedTasks,
 } from "./panel/panel";
 import { registerSettings } from "./settings/settings";
 import type {
@@ -70,6 +74,7 @@ const RENDER_AFFECTING_SETTINGS = [
   SETTING_TASKS_PATH,
   SETTING_COMPLETED_TASKS_PATH,
   SETTING_TASK_TEMPLATE_PATH,
+  SETTING_TAGGED_TASKS_TAGS,
 ];
 
 async function shouldOpenCreatedItem(): Promise<boolean> {
@@ -84,6 +89,8 @@ async function enqueueTaskCompletion(operation: () => Promise<void>): Promise<vo
 }
 
 async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessage | void> {
+  activateFastTaggedTasksPolling();
+
   if (message.name === "selectDate") {
     return selectCalendarDate(message.date);
   }
@@ -146,6 +153,14 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
     return toggleOverdueTasks();
   }
 
+  if (message.name === "toggleTaggedTasks") {
+    return toggleTaggedTasks();
+  }
+
+  if (message.name === "toggleTaggedTaskGroup") {
+    return toggleTaggedTaskGroup(message.tagId);
+  }
+
   if (message.name === "prevMonth") {
     return goToPrevMonth();
   }
@@ -168,6 +183,7 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
 }
 
 async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
+  activateFastTaggedTasksPolling();
   invalidateTaskMetadataCache(event.id);
 
   try {
@@ -188,6 +204,8 @@ async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
 async function handleNoteSelectionChange(
   event: NoteSelectionChangeEvent,
 ): Promise<void> {
+  activateFastTaggedTasksPolling();
+
   const selectedNoteIds = event.value ?? [];
   const selectedNoteIdSet = new Set(selectedNoteIds);
   const changedFromVisibleCalendarNote = await Promise.all(
@@ -261,6 +279,7 @@ joplin.plugins.register({
     await joplin.workspace.onNoteChange(handleNoteChange);
     await joplin.workspace.onNoteSelectionChange(handleNoteSelectionChange);
     await joplin.workspace.onSyncComplete(async () => {
+      activateFastTaggedTasksPolling();
       clearCalendarNoteCaches();
       await scheduleCalendarRefresh();
     });

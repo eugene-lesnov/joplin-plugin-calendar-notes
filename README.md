@@ -8,6 +8,7 @@
 - Days with existing notes or tasks are highlighted.
 - Click a day to select it; sections below the calendar list that day's tasks and notes.
 - Create Joplin todo tasks for a selected day, complete them from the calendar panel, configure simple recurring tasks, see task reminders, and keep overdue tasks visible in one place.
+- Show undated todo tasks with configured tags in a separate collapsible section.
 - Simple presets for date format and new note titles.
 - Separate notebooks and nested structures for calendar notes and tasks.
 - Optional note and task templates with placeholders (`{{title}}`, `{{date}}`, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
@@ -38,10 +39,15 @@ Joplin **3.5** or newer.
 | Tasks: nested notebooks | Optional path inside the tasks notebook, e.g. `{{year}}/{{month}}` |
 | Tasks: completed notebook | Notebook path where completed tasks are moved, e.g. `Completed tasks`; missing notebooks are created automatically |
 | Tasks: new task template | Joplin note used as a body template for new todo tasks, e.g. `Templates/Calendar task`; template tags are copied to created tasks |
+| Tasks: tags (without date) | Comma-separated tag names for undated todo tasks shown in the calendar panel, e.g. `Watch,Do,Read` |
 
 ## How notes are matched
 
 Notes are matched only inside the configured notes notebook and its nested notebooks. Active Joplin todo tasks are matched only inside the configured tasks notebook and its nested notebooks. Completed tasks are moved to the configured completed tasks notebook. An item belongs to a day when its title starts with the selected date format, so renamed items like `25.01.2026 meeting` remain visible for that day. New notes and tasks are created in their own configured notebooks. If a nested structure is set, missing nested notebooks are created automatically.
+
+## Undated tagged tasks
+
+The calendar panel can show todo tasks with configured tags in a separate collapsible section. A task is included only when it is a Joplin todo, has one of the configured tags, has no Joplin due date, and its title is not matched to any calendar day by the plugin date format. This keeps dated calendar tasks in their day sections and uses the tagged section as an undated backlog.
 
 ## Recurring tasks
 

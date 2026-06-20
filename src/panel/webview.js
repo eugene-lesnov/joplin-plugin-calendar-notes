@@ -438,6 +438,25 @@ async function postActionMessage(target, action) {
     });
   }
 
+  if (action === "toggleTaggedTasks") {
+    return webviewApi.postMessage({
+      name: "toggleTaggedTasks",
+    });
+  }
+
+  if (action === "toggleTaggedTaskGroup") {
+    const tagId = target.dataset.tagId;
+
+    if (!tagId) {
+      return;
+    }
+
+    return webviewApi.postMessage({
+      name: "toggleTaggedTaskGroup",
+      tagId,
+    });
+  }
+
   if (action === "prevMonth") {
     return webviewApi.postMessage({
       name: "prevMonth",

@@ -21,6 +21,8 @@ import {
   buildDayIdentifier,
   compareCalendarNotesByTitle,
   getExistingCalendarNoteMarkers,
+  getTaggedTasks,
+  getTaggedTasksSignature,
   isCalendarNoteTitleForDate,
   isDeletedNote,
   resolveCalendarNoteDateId,
@@ -36,6 +38,7 @@ import type {
   PanelMessage,
   PatchVisibleNoteMessage,
   PatchVisibleNotesMessage,
+  TaggedTaskGroup,
 } from "../core/types";
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
@@ -51,12 +54,24 @@ let visibleNotesByDate: Map<string, NoteSummary[]> = new Map();
 let visibleTasksByDate: Map<string, NoteSummary[]> = new Map();
 let visibleOverdueTasks: CalendarTaskWithDate[] = [];
 let showAllOverdueTasks = false;
+let showTaggedTasks = true;
+let visibleTaggedTasks: TaggedTaskGroup[] = [];
+let lastTaggedTasksSignature: string | null = null;
+const hiddenTaggedTaskGroupIds = new Set<string>();
 let selectedDateId: string | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 let refreshInFlight = false;
 let refreshPending = false;
 let renderSeq = 0;
 let panelShellReady = false;
+let taggedTasksPollTimer: ReturnType<typeof setTimeout> | null = null;
+let taggedTasksPollInFlight = false;
+let fastTaggedTasksPollingUntil = 0;
+const TAGGED_TASKS_FAST_POLL_MS = 750;
+const TAGGED_TASKS_DESKTOP_IDLE_POLL_MS = 2_500;
+const TAGGED_TASKS_MOBILE_IDLE_POLL_MS = 5_000;
+const TAGGED_TASKS_HIDDEN_POLL_MS = 30_000;
+const TAGGED_TASKS_FAST_POLL_WINDOW_MS = 12_000;
 
 export async function setupPanel(
   onMessage: (message: CalendarMessage) => Promise<PanelMessage | void>,
@@ -76,6 +91,8 @@ export async function setupPanel(
   );
 
   await joplin.views.panels.onMessage(panelHandle, onMessage);
+
+  scheduleTaggedTasksPoll(0);
 }
 
 function renderPanelShell(contentHtml: string, isMobile: boolean): string {
@@ -303,10 +320,11 @@ function renderTaskItemHtml(
   title: string,
   dateId: string,
   datePrefix = "",
+  showRepeat = true,
 ): string {
   const completed = isTaskCompleted(task);
   const alarmHtml = renderTaskAlarmHtml(task, completed, dateId);
-  const repeatHtml = renderTaskRepeatHtml(task, completed);
+  const repeatHtml = showRepeat ? renderTaskRepeatHtml(task, completed) : "";
   const visibleTitle = datePrefix ? `${datePrefix} ${title}` : title;
 
   return `<li class="day-task ${completed ? "completed" : ""}">
@@ -428,6 +446,7 @@ async function renderVisiblePanel(): Promise<PanelHtmlMessage> {
     visibleNotesByDate,
     visibleTasksByDate,
     visibleOverdueTasks,
+    visibleTaggedTasks,
     settings,
   );
 
@@ -483,6 +502,53 @@ function renderOverdueTasksSectionHtml(
   `;
 }
 
+function renderTaggedTasksSectionHtml(
+  groups: readonly TaggedTaskGroup[],
+): string {
+  if (groups.length === 0) {
+    return "";
+  }
+
+  const toggleLabel = showTaggedTasks ? "⌄" : "›";
+  const sections = showTaggedTasks
+    ? groups.map((group) => {
+      const isVisible = !hiddenTaggedTaskGroupIds.has(group.tagId);
+      const groupToggleLabel = isVisible ? "⌄" : "›";
+      const items = isVisible
+        ? group.tasks.map((task) =>
+          renderTaskItemHtml(task, task.title, "", "", false),
+        ).join("")
+        : "";
+
+      return `
+        <div class="tag-group${isVisible ? " expanded" : ""}">
+          <div class="tag-group-summary">
+            <div class="tag-group-header">${escapeHtml(group.tagName)}</div>
+            <span
+              role="button"
+              tabindex="0"
+              class="tag-group-toggle"
+              data-action="toggleTaggedTaskGroup"
+              data-tag-id="${escapeHtml(group.tagId)}"
+            >${escapeHtml(groupToggleLabel)}</span>
+          </div>
+          ${isVisible ? `<ul class="selected-day-list">${items}</ul>` : ""}
+        </div>
+      `;
+    }).join("")
+    : "";
+
+  return `
+    <section class="tagged-tasks day-section">
+      <div class="tagged-tasks-summary">
+        <div class="selected-day-header">${escapeHtml(strings.taggedTasksSectionLabel)}</div>
+        <span role="button" tabindex="0" class="tagged-tasks-toggle" data-action="toggleTaggedTasks">${escapeHtml(toggleLabel)}</span>
+      </div>
+      ${sections}
+    </section>
+  `;
+}
+
 function renderSelectedDaySectionHtml(
   dateId: string,
   tasks: readonly NoteSummary[],
@@ -509,6 +575,7 @@ function renderCalendarHtml(
   notesByDate: Map<string, NoteSummary[]>,
   tasksByDate: Map<string, NoteSummary[]>,
   overdueTasks: readonly CalendarTaskWithDate[],
+  taggedTasks: readonly TaggedTaskGroup[],
   settings: CalendarSettings,
 ): string {
   const todayId = getTodayDateId();
@@ -584,6 +651,8 @@ function renderCalendarHtml(
 
 			${renderOverdueTasksSectionHtml(overdueTasks, settings)}
 
+			${renderTaggedTasksSectionHtml(taggedTasks)}
+
 			${
               selectedDateId
                 ? renderSelectedDaySectionHtml(
@@ -601,11 +670,10 @@ function renderCalendarHtml(
 export async function renderCalendar(): Promise<PanelHtmlMessage | void> {
   const mySeq = ++renderSeq;
   const settings = await getCalendarSettings();
-  const existingMarkers = await getExistingCalendarNoteMarkers(
-    currentYear,
-    currentMonth,
-    settings,
-  );
+  const [existingMarkers, taggedTasks] = await Promise.all([
+    getExistingCalendarNoteMarkers(currentYear, currentMonth, settings),
+    getTaggedTasks(settings),
+  ]);
 
   if (mySeq !== renderSeq) {
     return;
@@ -615,6 +683,9 @@ export async function renderCalendar(): Promise<PanelHtmlMessage | void> {
   visibleNotesByDate = existingMarkers.notesByDate;
   visibleTasksByDate = existingMarkers.tasksByDate;
   visibleOverdueTasks = existingMarkers.overdueTasks;
+  visibleTaggedTasks = taggedTasks.groups;
+  pruneHiddenTaggedTaskGroups(visibleTaggedTasks);
+  lastTaggedTasksSignature = buildTaggedTasksSignature(visibleTaggedTasks);
 
   const html = renderCalendarHtml(
     currentYear,
@@ -623,6 +694,7 @@ export async function renderCalendar(): Promise<PanelHtmlMessage | void> {
     existingMarkers.notesByDate,
     existingMarkers.tasksByDate,
     existingMarkers.overdueTasks,
+    visibleTaggedTasks,
     settings,
   );
 
@@ -635,6 +707,88 @@ export async function refreshVisibleCalendar(): Promise<PanelHtmlMessage | void>
   }
 
   return renderCalendar();
+}
+
+function buildTaggedTasksSignature(groups: readonly TaggedTaskGroup[]): string {
+  return groups
+    .map((group) => {
+      const tasks = group.tasks
+        .map((task) => `${task.id}:${task.title}:${task.todo_completed ?? 0}`)
+        .sort()
+        .join("|");
+
+      return `${group.tagId}:${group.tagName}#${tasks}`;
+    })
+    .join("~");
+}
+
+function pruneHiddenTaggedTaskGroups(groups: readonly TaggedTaskGroup[]): void {
+  const visibleGroupIds = new Set(groups.map((group) => group.tagId));
+
+  for (const groupId of hiddenTaggedTaskGroupIds) {
+    if (!visibleGroupIds.has(groupId)) {
+      hiddenTaggedTaskGroupIds.delete(groupId);
+    }
+  }
+}
+
+function getTaggedTasksPollInterval(isMobile: boolean): number {
+  if (Date.now() < fastTaggedTasksPollingUntil) {
+    return TAGGED_TASKS_FAST_POLL_MS;
+  }
+
+  return isMobile ? TAGGED_TASKS_MOBILE_IDLE_POLL_MS : TAGGED_TASKS_DESKTOP_IDLE_POLL_MS;
+}
+
+async function scheduleTaggedTasksPoll(delayMs?: number): Promise<void> {
+  if (taggedTasksPollTimer) {
+    clearTimeout(taggedTasksPollTimer);
+  }
+
+  const isMobile = await isMobilePlatform();
+  const delay = delayMs ?? getTaggedTasksPollInterval(isMobile);
+
+  taggedTasksPollTimer = setTimeout(() => {
+    taggedTasksPollTimer = null;
+    void pollTaggedTasks();
+  }, delay);
+}
+
+export function activateFastTaggedTasksPolling(): void {
+  fastTaggedTasksPollingUntil = Date.now() + TAGGED_TASKS_FAST_POLL_WINDOW_MS;
+  void scheduleTaggedTasksPoll(0);
+}
+
+async function pollTaggedTasks(): Promise<void> {
+  if (taggedTasksPollInFlight) {
+    return;
+  }
+
+  taggedTasksPollInFlight = true;
+  let nextPollDelay: number | undefined;
+
+  try {
+    if (!(await isPanelVisible())) {
+      nextPollDelay = TAGGED_TASKS_HIDDEN_POLL_MS;
+      return;
+    }
+
+    const settings = await getCalendarSettings();
+
+    if (!settings.taggedTasksTags.trim()) {
+      lastTaggedTasksSignature = "";
+      return;
+    }
+
+    const signature = await getTaggedTasksSignature(settings);
+
+    if (signature !== lastTaggedTasksSignature) {
+      await renderCalendar();
+    }
+  } finally {
+    taggedTasksPollInFlight = false;
+    void scheduleTaggedTasksPoll(nextPollDelay);
+  }
 }
 
 async function runCoalescedRefresh(): Promise<void> {
@@ -814,8 +968,43 @@ export async function patchVisibleCalendarNoteChange(
   return true;
 }
 
+function isVisibleTaggedTask(noteId: string): boolean {
+  return visibleTaggedTasks.some((group) =>
+    group.tasks.some((task) => task.id === noteId),
+  );
+}
+
 export async function isVisibleCalendarNote(noteId: string): Promise<boolean> {
   return (await isPanelVisible()) && visibleCalendarNoteDatesById.has(noteId);
+}
+
+export async function shouldRefreshCalendarForNoteChange(
+  noteId: string,
+  eventType: number,
+): Promise<boolean> {
+  if (!(await isPanelVisible())) {
+    return false;
+  }
+
+  if (visibleCalendarNoteDatesById.has(noteId) || isVisibleTaggedTask(noteId)) {
+    return true;
+  }
+
+  if (eventType === NOTE_CHANGE_DELETE_EVENT) {
+    return false;
+  }
+
+  const note = await getActiveNote(noteId);
+
+  if (!note) {
+    return false;
+  }
+
+  const settings = await getCalendarSettings();
+
+  return Boolean(
+    resolveCalendarNoteDateId(note.title, currentYear, currentMonth, settings),
+  );
 }
 
 export async function hasStaleVisibleCalendarNoteMarkers(): Promise<boolean> {
@@ -838,35 +1027,6 @@ export async function hasStaleVisibleCalendarNoteMarkers(): Promise<boolean> {
   }
 
   return false;
-}
-
-export async function shouldRefreshCalendarForNoteChange(
-  noteId: string,
-  eventType: number,
-): Promise<boolean> {
-  if (!(await isPanelVisible())) {
-    return false;
-  }
-
-  if (visibleCalendarNoteDatesById.has(noteId)) {
-    return true;
-  }
-
-  if (eventType === NOTE_CHANGE_DELETE_EVENT) {
-    return false;
-  }
-
-  const note = await getActiveNote(noteId);
-
-  if (!note) {
-    return false;
-  }
-
-  const settings = await getCalendarSettings();
-
-  return Boolean(
-    resolveCalendarNoteDateId(note.title, currentYear, currentMonth, settings),
-  );
 }
 
 export async function showCalendarPanel(): Promise<void> {
@@ -904,6 +1064,26 @@ export async function addCreatedCalendarTask(
 
 export async function toggleOverdueTasks(): Promise<PanelHtmlMessage> {
   showAllOverdueTasks = !showAllOverdueTasks;
+
+  return renderVisiblePanel();
+}
+
+export async function toggleTaggedTasks(): Promise<PanelHtmlMessage> {
+  showTaggedTasks = !showTaggedTasks;
+
+  return renderVisiblePanel();
+}
+
+export async function toggleTaggedTaskGroup(tagId: string): Promise<PanelHtmlMessage> {
+  if (!tagId) {
+    return renderVisiblePanel();
+  }
+
+  if (hiddenTaggedTaskGroupIds.has(tagId)) {
+    hiddenTaggedTaskGroupIds.delete(tagId);
+  } else {
+    hiddenTaggedTaskGroupIds.add(tagId);
+  }
 
   return renderVisiblePanel();
 }
@@ -967,6 +1147,7 @@ export async function selectCalendarDate(dateId: string): Promise<PanelHtmlMessa
     visibleNotesByDate,
     visibleTasksByDate,
     visibleOverdueTasks,
+    visibleTaggedTasks,
     settings,
   );
 
