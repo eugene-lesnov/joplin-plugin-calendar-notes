@@ -14,11 +14,173 @@ let visibleNotesPatchInFlight = false;
 let visibleNotesPatchTimer = null;
 let visibleNotesPatchFastUntil = 0;
 
+function keyOf(node) {
+  if (node.nodeType !== 1) {
+    return null;
+  }
+
+  return node.getAttribute("data-date")
+    || node.getAttribute("data-note-id")
+    || node.getAttribute("data-tag-id")
+    || null;
+}
+
+function nodeMatches(a, b) {
+  if (a.nodeType !== b.nodeType) {
+    return false;
+  }
+
+  if (a.nodeType === 1) {
+    return a.tagName === b.tagName;
+  }
+
+  return true;
+}
+
+function morphAttributes(fromEl, toEl) {
+  const toAttrs = toEl.attributes;
+
+  for (let i = 0; i < toAttrs.length; i++) {
+    const attr = toAttrs[i];
+
+    if (fromEl.getAttribute(attr.name) !== attr.value) {
+      fromEl.setAttribute(attr.name, attr.value);
+    }
+  }
+
+  const fromAttrs = fromEl.attributes;
+
+  for (let i = fromAttrs.length - 1; i >= 0; i--) {
+    const name = fromAttrs[i].name;
+
+    if (!toEl.hasAttribute(name)) {
+      fromEl.removeAttribute(name);
+    }
+  }
+}
+
+function syncFormState(el) {
+  if (el.tagName !== "INPUT") {
+    return;
+  }
+
+  const type = el.getAttribute("type");
+
+  if (type === "checkbox" || type === "radio") {
+    el.checked = el.hasAttribute("checked");
+  }
+
+  el.disabled = el.hasAttribute("disabled");
+}
+
+function morphNode(fromNode, toNode) {
+  if (
+    fromNode.nodeType !== toNode.nodeType
+    || (fromNode.nodeType === 1 && fromNode.tagName !== toNode.tagName)
+  ) {
+    fromNode.parentNode.replaceChild(toNode, fromNode);
+    return;
+  }
+
+  if (fromNode.nodeType === 3 || fromNode.nodeType === 8) {
+    if (fromNode.nodeValue !== toNode.nodeValue) {
+      fromNode.nodeValue = toNode.nodeValue;
+    }
+    return;
+  }
+
+  if (fromNode.nodeType !== 1) {
+    return;
+  }
+
+  morphAttributes(fromNode, toNode);
+  syncFormState(fromNode);
+  morphChildren(fromNode, toNode);
+}
+
+function morphChildren(fromEl, toEl) {
+  const originalChildren = [];
+  const oldKeyed = new Map();
+
+  for (let node = fromEl.firstChild; node; node = node.nextSibling) {
+    originalChildren.push(node);
+    const key = keyOf(node);
+
+    if (key !== null) {
+      oldKeyed.set(key, node);
+    }
+  }
+
+  const claimed = new Set();
+  let cursor = fromEl.firstChild;
+  let newChild = toEl.firstChild;
+
+  while (newChild) {
+    const nextNew = newChild.nextSibling;
+    const newKey = keyOf(newChild);
+    let match = null;
+
+    if (newKey !== null) {
+      if (oldKeyed.has(newKey)) {
+        match = oldKeyed.get(newKey);
+        oldKeyed.delete(newKey);
+      }
+    } else if (
+      cursor
+      && !claimed.has(cursor)
+      && keyOf(cursor) === null
+      && nodeMatches(cursor, newChild)
+    ) {
+      match = cursor;
+    }
+
+    if (match) {
+      claimed.add(match);
+
+      if (match === cursor) {
+        cursor = cursor.nextSibling;
+      } else {
+        fromEl.insertBefore(match, cursor);
+      }
+
+      morphNode(match, newChild);
+    } else {
+      fromEl.insertBefore(newChild, cursor);
+    }
+
+    newChild = nextNew;
+  }
+
+  for (const child of originalChildren) {
+    if (!claimed.has(child)) {
+      fromEl.removeChild(child);
+    }
+  }
+}
+
+function morphPanelHtml(root, html) {
+  try {
+    const parsed = document.createElement("div");
+    parsed.innerHTML = html;
+    morphChildren(root, parsed);
+    return true;
+  } catch (error) {
+    console.error("Calendar panel morph failed, falling back to innerHTML.", error);
+    return false;
+  }
+}
+
 function applyPanelHtml(html) {
   const root = document.getElementById(PANEL_ROOT_ID);
 
   if (root && html !== lastPanelHtml) {
-    root.innerHTML = html;
+    if (isMobilePanel() && root.firstChild) {
+      if (!morphPanelHtml(root, html)) {
+        root.innerHTML = html;
+      }
+    } else {
+      root.innerHTML = html;
+    }
   }
 
   lastPanelHtml = html;
