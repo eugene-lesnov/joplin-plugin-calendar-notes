@@ -114,19 +114,36 @@ export async function resolveNotebookPath(
   return resolveNotebookPathFromFolders(await getAllFolders(), path);
 }
 
-export async function getNotebookTreeIds(path: string): Promise<Set<string>> {
+export async function getNotebookTreeIdsForPaths(
+  paths: string[],
+): Promise<Map<string, Set<string>>> {
   const folders = await getAllFolders();
-  const rootFolder = resolveNotebookPathFromFolders(folders, path);
+  const result = new Map<string, Set<string>>();
 
-  if (!rootFolder) {
-    return new Set();
+  for (const path of paths) {
+    if (result.has(path)) {
+      continue;
+    }
+
+    const rootFolder = resolveNotebookPathFromFolders(folders, path);
+
+    if (!rootFolder) {
+      result.set(path, new Set());
+      continue;
+    }
+
+    const ids = new Set<string>([rootFolder.id]);
+    collectDescendantFolderIds(folders, rootFolder.id, ids);
+    result.set(path, ids);
   }
 
-  const ids = new Set<string>([rootFolder.id]);
+  return result;
+}
 
-  collectDescendantFolderIds(folders, rootFolder.id, ids);
+export async function getNotebookTreeIds(path: string): Promise<Set<string>> {
+  const resolved = await getNotebookTreeIdsForPaths([path]);
 
-  return ids;
+  return resolved.get(path) ?? new Set();
 }
 
 export async function ensureNotebookPath(

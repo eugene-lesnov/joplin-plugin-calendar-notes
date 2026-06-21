@@ -34,6 +34,7 @@ import {
 import {
   ensureNotebookPath,
   getNotebookTreeIds,
+  getNotebookTreeIdsForPaths,
   resolveNotebookPath,
   splitNotebookPath,
 } from "./notebooks";
@@ -89,6 +90,10 @@ export function clearCalendarNoteCaches(): void {
   rootFolderIdCache.clear();
   treeIdsByPath.clear();
   templateSourceCache.clear();
+  taskMetadataCache.clear();
+}
+
+export function invalidateAfterSync(): void {
   taskMetadataCache.clear();
 }
 
@@ -649,6 +654,20 @@ async function getCachedTreeIds(path: string): Promise<Set<string>> {
   return treeIds;
 }
 
+async function ensureCachedTreeIds(paths: string[]): Promise<void> {
+  const missing = paths.filter((path) => !treeIdsByPath.has(path));
+
+  if (missing.length === 0) {
+    return;
+  }
+
+  const resolved = await getNotebookTreeIdsForPaths(missing);
+
+  for (const path of missing) {
+    treeIdsByPath.set(path, resolved.get(path) ?? new Set());
+  }
+}
+
 async function getNotebookFolderIdForCreate(
   rootPath: string,
   dateId: string,
@@ -803,6 +822,12 @@ export async function getExistingCalendarNoteMarkers(
   const today = new Date();
   const currentYear = today.getFullYear();
   const todayId = formatDateId(currentYear, today.getMonth(), today.getDate());
+
+  await ensureCachedTreeIds([
+    settings.notebookNotesPath,
+    settings.tasksPath,
+    settings.completedTasksPath,
+  ]);
 
   const notesFolderIds = await getNotebookNotesTreeIds(settings);
   const tasksFolderIds = await getTasksTreeIds(settings);
@@ -1181,15 +1206,17 @@ async function findRepeatedTaskByDate(
       const items = response.items as NoteSummary[];
 
       for (const rawNote of items) {
-        const note = await withTaskMetadata(rawNote);
-        const repeat = getTaskMetadata(note).repeat;
-
         if (
-          !isDeletedNote(note)
-          && isTodoNote(note)
-          && repeat?.id === repeatId
-          && isCalendarNoteTitleForDate(note.title, dateId, settings)
+          isDeletedNote(rawNote)
+          || !isTodoNote(rawNote)
+          || !isCalendarNoteTitleForDate(rawNote.title, dateId, settings)
         ) {
+          continue;
+        }
+
+        const note = await withTaskMetadata(rawNote);
+
+        if (getTaskMetadata(note).repeat?.id === repeatId) {
           return note;
         }
       }
