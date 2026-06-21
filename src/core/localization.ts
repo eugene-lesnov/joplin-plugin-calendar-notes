@@ -45,7 +45,9 @@ export interface AppLocalization {
   tasksSectionLabel: string;
   notesSectionLabel: string;
   createTaskButtonLabel: string;
+  createTaskButtonTitle: string;
   createNoteButtonLabel: string;
+  createNoteButtonTitle: string;
   newTaskDefaultTitle: string;
   taskRepeatDialogTitle: string;
   taskRepeatNoneLabel: string;
@@ -119,8 +121,10 @@ const defaultStrings: AppLocalization = {
   selectedDayLabel: "{{date}}",
   tasksSectionLabel: "Tasks",
   notesSectionLabel: "Notes",
-  createTaskButtonLabel: "+ New task",
-  createNoteButtonLabel: "+ New note",
+  createTaskButtonLabel: "+",
+  createTaskButtonTitle: "Add task",
+  createNoteButtonLabel: "+",
+  createNoteButtonTitle: "Add note",
   newTaskDefaultTitle: "New task",
   taskRepeatDialogTitle: "Task repeat",
   taskRepeatNoneLabel: "Do not repeat",
@@ -198,7 +202,9 @@ const localizations: Record<string, Partial<AppLocalization>> = {
     tasksSectionLabel: "Задачи",
     notesSectionLabel: "Заметки",
     createTaskButtonLabel: "+",
+    createTaskButtonTitle: "Добавить задачу",
     createNoteButtonLabel: "+",
+    createNoteButtonTitle: "Добавить заметку",
     newTaskDefaultTitle: "Новая задача",
     taskRepeatDialogTitle: "Повтор задачи",
     taskRepeatNoneLabel: "Не повторять",

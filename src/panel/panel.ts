@@ -271,7 +271,7 @@ function renderTaskRepeatHtml(task: NoteSummary, completed: boolean): string {
       data-note-id="${escapeHtml(task.id)}"
       data-can-clear-repeat="false"
       title="${escapeHtml(strings.taskRepeatSetHint)}"
-    >↻</span>`;
+    ><span class="task-repeat-icon">↻</span></span>`;
   }
 
   const label = getRepeatLabel(repeat.frequency);
@@ -281,7 +281,7 @@ function renderTaskRepeatHtml(task: NoteSummary, completed: boolean): string {
     return `<span
       class="task-repeat-label active"
       title="${escapeHtml(repeatTitle)}"
-    >↻ ${escapeHtml(label)}</span>`;
+    ><span class="task-repeat-icon">↻</span><span class="task-repeat-text">${escapeHtml(label)}</span></span>`;
   }
 
   const title = `${repeatTitle}. ${strings.taskRepeatClearHint}`;
@@ -294,7 +294,7 @@ function renderTaskRepeatHtml(task: NoteSummary, completed: boolean): string {
     data-note-id="${escapeHtml(task.id)}"
     data-can-clear-repeat="true"
     title="${escapeHtml(title)}"
-  >↻ ${escapeHtml(label)}</span>`;
+  ><span class="task-repeat-icon">↻</span><span class="task-repeat-text">${escapeHtml(label)}</span></span>`;
 }
 
 function renderTaskAlarmHtml(task: NoteSummary, completed: boolean, dateId: string): string {
@@ -323,11 +323,18 @@ function renderTaskItemHtml(
   showRepeat = true,
 ): string {
   const completed = isTaskCompleted(task);
+  const repeat = showRepeat ? task.metadata?.repeat : undefined;
   const alarmHtml = renderTaskAlarmHtml(task, completed, dateId);
   const repeatHtml = showRepeat ? renderTaskRepeatHtml(task, completed) : "";
+  const repeatMetaHtml = repeat
+    ? `<span class="task-repeat-mobile-text">↻ ${escapeHtml(getRepeatLabel(repeat.frequency))}</span>`
+    : "";
+  const hasMeta = Boolean(repeatMetaHtml || alarmHtml);
+  const inlineRepeatHtml = hasMeta && completed ? "" : repeatHtml;
+  const metaHtml = hasMeta ? `<span class="task-meta">${repeatMetaHtml}${alarmHtml}</span>` : "";
   const visibleTitle = datePrefix ? `${datePrefix} ${title}` : title;
 
-  return `<li class="day-task ${completed ? "completed" : ""}">
+  return `<li class="day-task ${completed ? "completed" : ""} ${hasMeta ? "has-meta" : ""}">
     <input
       class="task-checkbox"
       type="checkbox"
@@ -345,8 +352,8 @@ function renderTaskItemHtml(
       data-note-id="${escapeHtml(task.id)}"
       title="${escapeHtml(task.title)}"
     >${escapeHtml(visibleTitle)}</span>
-    ${repeatHtml}
-    ${alarmHtml}
+    ${inlineRepeatHtml}
+    ${metaHtml}
   </li>`;
 }
 
@@ -378,7 +385,8 @@ function renderTasksSectionHtml(
             class="add-item-button"
             data-action="createTask"
             data-date="${escapeHtml(dateId)}"
-            title="${escapeHtml(strings.createTaskButtonLabel)}"
+            title="${escapeHtml(strings.createTaskButtonTitle)}"
+            aria-label="${escapeHtml(strings.createTaskButtonTitle)}"
           >${escapeHtml(strings.createTaskButtonLabel)}</span>
         </div>
       </div>
@@ -417,7 +425,8 @@ function renderNotesSectionHtml(
             class="add-item-button"
             data-action="createNote"
             data-date="${escapeHtml(dateId)}"
-            title="${escapeHtml(strings.createNoteButtonLabel)}"
+            title="${escapeHtml(strings.createNoteButtonTitle)}"
+            aria-label="${escapeHtml(strings.createNoteButtonTitle)}"
           >${escapeHtml(strings.createNoteButtonLabel)}</span>
         </div>
       </div>
@@ -476,13 +485,13 @@ function renderOverdueTasksSectionHtml(
   const heading = formatLocalizedString(strings.overdueTasksLabel, {
     count: overdueTasks.length,
   });
-  const toggleLabel = showAllOverdueTasks ? "⌄" : "›";
+  const toggleClass = showAllOverdueTasks ? "expanded" : "collapsed";
 
   return `
     <section class="overdue-tasks day-section">
       <div class="overdue-summary">
         <div class="selected-day-header overdue-header">⚠ ${escapeHtml(heading)}</div>
-        <span role="button" tabindex="0" class="overdue-toggle" data-action="toggleOverdueTasks">${escapeHtml(toggleLabel)}</span>
+        <span role="button" tabindex="0" class="overdue-toggle ${toggleClass}" data-action="toggleOverdueTasks" aria-label="${escapeHtml(heading)}"></span>
       </div>
       ${showAllOverdueTasks
         ? `<ul class="selected-day-list overdue-task-list">
@@ -509,11 +518,11 @@ function renderTaggedTasksSectionHtml(
     return "";
   }
 
-  const toggleLabel = showTaggedTasks ? "⌄" : "›";
+  const toggleClass = showTaggedTasks ? "expanded" : "collapsed";
   const sections = showTaggedTasks
     ? groups.map((group) => {
       const isVisible = !hiddenTaggedTaskGroupIds.has(group.tagId);
-      const groupToggleLabel = isVisible ? "⌄" : "›";
+      const groupToggleClass = isVisible ? "expanded" : "collapsed";
       const items = isVisible
         ? group.tasks.map((task) =>
           renderTaskItemHtml(task, task.title, "", "", false),
@@ -527,10 +536,11 @@ function renderTaggedTasksSectionHtml(
             <span
               role="button"
               tabindex="0"
-              class="tag-group-toggle"
+              class="tag-group-toggle ${groupToggleClass}"
               data-action="toggleTaggedTaskGroup"
               data-tag-id="${escapeHtml(group.tagId)}"
-            >${escapeHtml(groupToggleLabel)}</span>
+              aria-label="${escapeHtml(group.tagName)}"
+            ></span>
           </div>
           ${isVisible ? `<ul class="selected-day-list">${items}</ul>` : ""}
         </div>
@@ -542,7 +552,7 @@ function renderTaggedTasksSectionHtml(
     <section class="tagged-tasks day-section">
       <div class="tagged-tasks-summary">
         <div class="selected-day-header">${escapeHtml(strings.taggedTasksSectionLabel)}</div>
-        <span role="button" tabindex="0" class="tagged-tasks-toggle" data-action="toggleTaggedTasks">${escapeHtml(toggleLabel)}</span>
+        <span role="button" tabindex="0" class="tagged-tasks-toggle ${toggleClass}" data-action="toggleTaggedTasks" aria-label="${escapeHtml(strings.taggedTasksSectionLabel)}"></span>
       </div>
       ${sections}
     </section>
