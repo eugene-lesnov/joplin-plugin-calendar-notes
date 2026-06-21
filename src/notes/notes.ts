@@ -111,6 +111,7 @@ function isTaggedTaskCandidate(note: NoteSummary, settings: CalendarSettings): b
   return isTodoNote(note)
     && !note.todo_due
     && !isDeletedNote(note)
+    && !isTodoCompleted(note)
     && !resolveAnyCalendarNoteDateId(note.title, settings);
 }
 
