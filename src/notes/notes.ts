@@ -90,6 +90,7 @@ type MonthNoteMarkers = {
   notesByDate: Map<string, NoteSummary[]>;
 };
 
+const MARKERS_BY_MONTH_MAX = 36;
 const markersByMonth = new Map<string, MonthNoteMarkers>();
 const processingTaskCompletionNoteIds = new Set<string>();
 
@@ -105,6 +106,10 @@ export function clearCalendarNoteCaches(): void {
 
 export function invalidateTaskMetadataCache(noteId: string): void {
   taskMetadataCache.delete(noteId);
+}
+
+export function hasCachedMonthMarkers(): boolean {
+  return markersByMonth.size > 0;
 }
 
 export function invalidateCalendarMonthMarkers(year: number, month: number): void {
@@ -896,6 +901,10 @@ async function getMonthNoteMarkers(
 
   const markers: MonthNoteMarkers = { datesByNoteId, noteCountsByDate, notesByDate };
   markersByMonth.set(key, markers);
+
+  if (markersByMonth.size > MARKERS_BY_MONTH_MAX) {
+    markersByMonth.delete(markersByMonth.keys().next().value);
+  }
 
   return markers;
 }

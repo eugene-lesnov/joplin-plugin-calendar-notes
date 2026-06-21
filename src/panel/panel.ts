@@ -24,6 +24,7 @@ import {
   getExistingCalendarNoteMarkers,
   getTaggedTasks,
   getTaggedTasksSignature,
+  hasCachedMonthMarkers,
   invalidateCalendarMonthMarkers,
   invalidateCalendarMonthMarkersForNote,
   isCalendarNoteTitleForDate,
@@ -999,7 +1000,10 @@ export async function invalidateCalendarMonthCacheForNoteChange(
   noteId: string,
   eventType: number,
 ): Promise<void> {
-  invalidateCalendarMonthMarkers(currentYear, currentMonth);
+  if (!hasCachedMonthMarkers()) {
+    return;
+  }
+
   invalidateCalendarMonthMarkersForNote(noteId);
 
   if (eventType === NOTE_CHANGE_DELETE_EVENT) {
