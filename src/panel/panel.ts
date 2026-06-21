@@ -69,7 +69,7 @@ let taggedTasksPollInFlight = false;
 let fastTaggedTasksPollingUntil = 0;
 const TAGGED_TASKS_FAST_POLL_MS = 750;
 const TAGGED_TASKS_DESKTOP_IDLE_POLL_MS = 2_500;
-const TAGGED_TASKS_MOBILE_IDLE_POLL_MS = 5_000;
+const TAGGED_TASKS_MOBILE_IDLE_POLL_MS = 15_000;
 const TAGGED_TASKS_HIDDEN_POLL_MS = 30_000;
 const TAGGED_TASKS_FAST_POLL_WINDOW_MS = 12_000;
 
@@ -149,31 +149,38 @@ async function getActiveNote(noteId: string): Promise<NoteSummary | null> {
   }
 }
 
+const dateTimeFormatCache = new Map<string, Intl.DateTimeFormat>();
+
+function getDateTimeFormat(
+  locales: string[] | undefined,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  const key = `${locales ? locales.join(",") : ""}|${JSON.stringify(options)}`;
+  let formatter = dateTimeFormatCache.get(key);
+
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locales, options);
+    dateTimeFormatCache.set(key, formatter);
+  }
+
+  return formatter;
+}
+
 function formatMonthLabel(year: number, month: number): string {
   const date = new Date(year, month, 1);
   const monthOptions: Intl.DateTimeFormatOptions = { month: "long" };
   const yearOptions: Intl.DateTimeFormatOptions = { year: "numeric" };
 
   try {
-    const monthName = new Intl.DateTimeFormat(
-      getLocales(),
-      monthOptions,
-    ).format(date);
-    const yearLabel = new Intl.DateTimeFormat(getLocales(), yearOptions).format(
-      date,
-    );
+    const monthName = getDateTimeFormat(getLocales(), monthOptions).format(date);
+    const yearLabel = getDateTimeFormat(getLocales(), yearOptions).format(date);
 
     return `${monthName} ${yearLabel}`;
   } catch (error) {
     console.warn("Failed to format month with plugin locales.", error);
 
-    const monthName = new Intl.DateTimeFormat(
-      undefined,
-      monthOptions,
-    ).format(date);
-    const yearLabel = new Intl.DateTimeFormat(undefined, yearOptions).format(
-      date,
-    );
+    const monthName = getDateTimeFormat(undefined, monthOptions).format(date);
+    const yearLabel = getDateTimeFormat(undefined, yearOptions).format(date);
 
     return `${monthName} ${yearLabel}`;
   }
@@ -984,9 +991,6 @@ function isVisibleTaggedTask(noteId: string): boolean {
   );
 }
 
-export async function isVisibleCalendarNote(noteId: string): Promise<boolean> {
-  return (await isPanelVisible()) && visibleCalendarNoteDatesById.has(noteId);
-}
 
 export async function shouldRefreshCalendarForNoteChange(
   noteId: string,
@@ -1017,26 +1021,32 @@ export async function shouldRefreshCalendarForNoteChange(
   );
 }
 
-export async function hasStaleVisibleCalendarNoteMarkers(): Promise<boolean> {
-  if (!(await isPanelVisible()) || visibleCalendarNoteDatesById.size === 0) {
+export async function hasStaleVisibleCalendarNoteMarkers(
+  noteIds: readonly string[],
+): Promise<boolean> {
+  if (!(await isPanelVisible())) {
+    return false;
+  }
+
+  const relevantIds = noteIds.filter((id) => visibleCalendarNoteDatesById.has(id));
+
+  if (relevantIds.length === 0) {
     return false;
   }
 
   const settings = await getCalendarSettings();
+  const notes = await Promise.all(relevantIds.map((id) => getActiveNote(id)));
 
-  for (const [noteId, dateId] of visibleCalendarNoteDatesById) {
-    const note = await getActiveNote(noteId);
+  return relevantIds.some((id, index) => {
+    const note = notes[index];
 
     if (!note) {
       return true;
     }
 
-    if (!isCalendarNoteTitleForDate(note.title, dateId, settings)) {
-      return true;
-    }
-  }
-
-  return false;
+    const dateId = visibleCalendarNoteDatesById.get(id)!;
+    return !isCalendarNoteTitleForDate(note.title, dateId, settings);
+  });
 }
 
 export async function showCalendarPanel(): Promise<void> {

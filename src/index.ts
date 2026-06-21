@@ -33,7 +33,6 @@ import {
   goToPrevMonth,
   goToToday,
   hasStaleVisibleCalendarNoteMarkers,
-  isVisibleCalendarNote,
   patchVisibleCalendarNoteChange,
   patchVisibleCalendarNotes,
   refreshVisibleCalendar,
@@ -204,22 +203,19 @@ async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
 async function handleNoteSelectionChange(
   event: NoteSelectionChangeEvent,
 ): Promise<void> {
-  activateFastTaggedTasksPolling();
+  if (!(await isMobilePlatform())) {
+    activateFastTaggedTasksPolling();
+  }
 
   const selectedNoteIds = event.value ?? [];
   const selectedNoteIdSet = new Set(selectedNoteIds);
-  const changedFromVisibleCalendarNote = await Promise.all(
-    previousSelectedNoteIds
-      .filter((noteId) => !selectedNoteIdSet.has(noteId))
-      .map((noteId) => isVisibleCalendarNote(noteId)),
+  const deselectedNoteIds = previousSelectedNoteIds.filter(
+    (noteId) => !selectedNoteIdSet.has(noteId),
   );
 
   previousSelectedNoteIds = selectedNoteIds;
 
-  if (
-    changedFromVisibleCalendarNote.some(Boolean) &&
-    (await hasStaleVisibleCalendarNoteMarkers())
-  ) {
+  if (await hasStaleVisibleCalendarNoteMarkers(deselectedNoteIds)) {
     await scheduleCalendarRefresh();
   }
 }

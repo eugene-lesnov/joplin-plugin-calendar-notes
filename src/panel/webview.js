@@ -17,7 +17,7 @@ let visibleNotesPatchFastUntil = 0;
 function applyPanelHtml(html) {
   const root = document.getElementById(PANEL_ROOT_ID);
 
-  if (root && html !== lastPanelHtml && html !== root.innerHTML) {
+  if (root && html !== lastPanelHtml) {
     root.innerHTML = html;
   }
 
