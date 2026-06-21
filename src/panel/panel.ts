@@ -7,6 +7,7 @@ import {
   formatDateId,
   getTodayDateId,
   pad2,
+  parseDateId,
   weekOffset,
   weekdayLabels,
 } from "../core/dateUtils";
@@ -23,8 +24,11 @@ import {
   getExistingCalendarNoteMarkers,
   getTaggedTasks,
   getTaggedTasksSignature,
+  invalidateCalendarMonthMarkers,
+  invalidateCalendarMonthMarkersForNote,
   isCalendarNoteTitleForDate,
   isDeletedNote,
+  resolveAnyCalendarNoteDateId,
   resolveCalendarNoteDateId,
   sortTasks,
 } from "../notes/notes";
@@ -989,6 +993,32 @@ function isVisibleTaggedTask(noteId: string): boolean {
   return visibleTaggedTasks.some((group) =>
     group.tasks.some((task) => task.id === noteId),
   );
+}
+
+export async function invalidateCalendarMonthCacheForNoteChange(
+  noteId: string,
+  eventType: number,
+): Promise<void> {
+  invalidateCalendarMonthMarkers(currentYear, currentMonth);
+  invalidateCalendarMonthMarkersForNote(noteId);
+
+  if (eventType === NOTE_CHANGE_DELETE_EVENT) {
+    return;
+  }
+
+  const note = await getActiveNote(noteId);
+
+  if (!note) {
+    return;
+  }
+
+  const settings = await getCalendarSettings();
+  const dateId = resolveAnyCalendarNoteDateId(note.title, settings);
+
+  if (dateId) {
+    const date = parseDateId(dateId);
+    invalidateCalendarMonthMarkers(date.year, date.month);
+  }
 }
 
 export async function shouldRefreshCalendarForNoteChange(

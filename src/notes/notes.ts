@@ -83,6 +83,14 @@ const rootFolderIdCache = new Map<string, string | null>();
 const treeIdsByPath = new Map<string, Set<string>>();
 const templateSourceCache = new Map<string, NoteTemplateSource>();
 const taskMetadataCache = new Map<string, TaskMetadata>();
+
+type MonthNoteMarkers = {
+  datesByNoteId: Map<string, string>;
+  noteCountsByDate: Map<string, number>;
+  notesByDate: Map<string, NoteSummary[]>;
+};
+
+const markersByMonth = new Map<string, MonthNoteMarkers>();
 const processingTaskCompletionNoteIds = new Set<string>();
 
 export function clearCalendarNoteCaches(): void {
@@ -91,11 +99,30 @@ export function clearCalendarNoteCaches(): void {
   treeIdsByPath.clear();
   templateSourceCache.clear();
   taskMetadataCache.clear();
+  markersByMonth.clear();
 }
 
 
 export function invalidateTaskMetadataCache(noteId: string): void {
   taskMetadataCache.delete(noteId);
+}
+
+export function invalidateCalendarMonthMarkers(year: number, month: number): void {
+  const suffix = `\u0000${year}-${month}`;
+
+  for (const key of markersByMonth.keys()) {
+    if (key.endsWith(suffix)) {
+      markersByMonth.delete(key);
+    }
+  }
+}
+
+export function invalidateCalendarMonthMarkersForNote(noteId: string): void {
+  for (const [key, markers] of markersByMonth) {
+    if (markers.datesByNoteId.has(noteId)) {
+      markersByMonth.delete(key);
+    }
+  }
 }
 
 type TagSummary = { id: string; title: string };
@@ -807,27 +834,36 @@ async function scanFolderNotes(
   }
 }
 
-export async function getExistingCalendarNoteMarkers(
+function buildMonthMarkersKey(
   year: number,
   month: number,
   settings: CalendarSettings,
-): Promise<ExistingCalendarNoteMarkers> {
-  const datesByNoteId = new Map<string, string>();
-  const notesByDate = new Map<string, NoteSummary[]>();
-  const tasksByDate = new Map<string, NoteSummary[]>();
-  const overdueTasks: CalendarTaskWithDate[] = [];
-  const today = new Date();
-  const currentYear = today.getFullYear();
-  const todayId = formatDateId(currentYear, today.getMonth(), today.getDate());
-
-  await ensureCachedTreeIds([
+): string {
+  const signature = [
+    settings.dayIdentifierFormat,
     settings.notebookNotesPath,
     settings.tasksPath,
     settings.completedTasksPath,
-  ]);
+  ].join("\u0001");
 
+  return `${signature}\u0000${year}-${month}`;
+}
+
+async function getMonthNoteMarkers(
+  year: number,
+  month: number,
+  settings: CalendarSettings,
+): Promise<MonthNoteMarkers> {
+  const key = buildMonthMarkersKey(year, month, settings);
+  const cached = markersByMonth.get(key);
+
+  if (cached) {
+    return cached;
+  }
+
+  const datesByNoteId = new Map<string, string>();
+  const notesByDate = new Map<string, NoteSummary[]>();
   const notesFolderIds = await getNotebookNotesTreeIds(settings);
-  const tasksFolderIds = await getTasksTreeIds(settings);
 
   for (const folderId of notesFolderIds) {
     await scanFolderNotes(folderId, (note) => {
@@ -849,6 +885,41 @@ export async function getExistingCalendarNoteMarkers(
     });
   }
 
+  for (const notes of notesByDate.values()) {
+    notes.sort(compareCalendarNotesByTitle);
+  }
+
+  const noteCountsByDate = new Map<string, number>();
+  for (const [dateId, notes] of notesByDate) {
+    noteCountsByDate.set(dateId, notes.length);
+  }
+
+  const markers: MonthNoteMarkers = { datesByNoteId, noteCountsByDate, notesByDate };
+  markersByMonth.set(key, markers);
+
+  return markers;
+}
+
+export async function getExistingCalendarNoteMarkers(
+  year: number,
+  month: number,
+  settings: CalendarSettings,
+): Promise<ExistingCalendarNoteMarkers> {
+  const tasksByDate = new Map<string, NoteSummary[]>();
+  const overdueTasks: CalendarTaskWithDate[] = [];
+  const today = new Date();
+  const todayId = formatDateId(today.getFullYear(), today.getMonth(), today.getDate());
+
+  await ensureCachedTreeIds([
+    settings.notebookNotesPath,
+    settings.tasksPath,
+    settings.completedTasksPath,
+  ]);
+
+  const monthNotes = await getMonthNoteMarkers(year, month, settings);
+  const tasksFolderIds = await getTasksTreeIds(settings);
+
+  const datesByNoteId = new Map(monthNotes.datesByNoteId);
   const tasksWithMetadata = new Set<NoteSummary>();
 
   for (const folderId of tasksFolderIds) {
@@ -882,10 +953,6 @@ export async function getExistingCalendarNoteMarkers(
 
   await attachTaskMetadata([...tasksWithMetadata]);
 
-  for (const notes of notesByDate.values()) {
-    notes.sort(compareCalendarNotesByTitle);
-  }
-
   for (const tasks of tasksByDate.values()) {
     tasks.sort(sortTasks);
   }
@@ -900,16 +967,10 @@ export async function getExistingCalendarNoteMarkers(
     return first.task.title.localeCompare(second.task.title);
   });
 
-  const noteCountsByDate = new Map<string, number>();
-  for (const [dateId, notes] of notesByDate) {
-    noteCountsByDate.set(dateId, notes.length);
-  }
-
-
   return {
     datesByNoteId,
-    noteCountsByDate,
-    notesByDate,
+    noteCountsByDate: new Map(monthNotes.noteCountsByDate),
+    notesByDate: new Map(monthNotes.notesByDate),
     tasksByDate,
     overdueTasks,
   };

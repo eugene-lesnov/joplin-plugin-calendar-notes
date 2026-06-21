@@ -33,6 +33,7 @@ import {
   goToPrevMonth,
   goToToday,
   hasStaleVisibleCalendarNoteMarkers,
+  invalidateCalendarMonthCacheForNoteChange,
   patchVisibleCalendarNoteChange,
   patchVisibleCalendarNotes,
   refreshVisibleCalendar,
@@ -184,6 +185,7 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
 async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
   activateFastTaggedTasksPolling();
   invalidateTaskMetadataCache(event.id);
+  await invalidateCalendarMonthCacheForNoteChange(event.id, event.event);
 
   try {
     await syncCalendarTaskCompletionLocation(event.id);
