@@ -346,7 +346,7 @@ function renderTaskItemHtml(
   const metaHtml = hasMeta ? `<span class="task-meta">${repeatMetaHtml}${alarmHtml}</span>` : "";
   const visibleTitle = datePrefix ? `${datePrefix} ${title}` : title;
 
-  return `<li class="day-task ${completed ? "completed" : ""} ${hasMeta ? "has-meta" : ""}">
+  return `<li class="day-task ${completed ? "completed" : ""} ${hasMeta ? "has-meta" : ""}" data-note-id="${escapeHtml(task.id)}">
     <input
       class="task-checkbox"
       type="checkbox"
@@ -415,7 +415,7 @@ function renderNotesSectionHtml(
     ? ""
     : `<ul class="selected-day-list">${notes
         .map(
-          (note) => `<li><span
+          (note) => `<li data-note-id="${escapeHtml(note.id)}"><span
             role="button"
             tabindex="0"
             class="day-note"

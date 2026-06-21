@@ -20,8 +20,8 @@ function keyOf(node) {
   }
 
   return node.getAttribute("data-date")
-    || node.getAttribute("data-note-id")
     || node.getAttribute("data-tag-id")
+    || (node.tagName === "LI" ? node.getAttribute("data-note-id") : null)
     || null;
 }
 
