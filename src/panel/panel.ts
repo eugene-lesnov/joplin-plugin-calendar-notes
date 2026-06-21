@@ -758,12 +758,12 @@ function getTaggedTasksPollInterval(isMobile: boolean): number {
 }
 
 async function scheduleTaggedTasksPoll(delayMs?: number): Promise<void> {
+  const isMobile = await isMobilePlatform();
+  const delay = delayMs ?? getTaggedTasksPollInterval(isMobile);
+
   if (taggedTasksPollTimer) {
     clearTimeout(taggedTasksPollTimer);
   }
-
-  const isMobile = await isMobilePlatform();
-  const delay = delayMs ?? getTaggedTasksPollInterval(isMobile);
 
   taggedTasksPollTimer = setTimeout(() => {
     taggedTasksPollTimer = null;
@@ -991,7 +991,6 @@ function isVisibleTaggedTask(noteId: string): boolean {
   );
 }
 
-
 export async function shouldRefreshCalendarForNoteChange(
   noteId: string,
   eventType: number,
@@ -1028,24 +1027,20 @@ export async function hasStaleVisibleCalendarNoteMarkers(
     return false;
   }
 
-  const relevantIds = noteIds.filter((id) => visibleCalendarNoteDatesById.has(id));
+  const relevant = noteIds
+    .filter((id) => visibleCalendarNoteDatesById.has(id))
+    .map((id) => ({ id, dateId: visibleCalendarNoteDatesById.get(id)! }));
 
-  if (relevantIds.length === 0) {
+  if (relevant.length === 0) {
     return false;
   }
 
   const settings = await getCalendarSettings();
-  const notes = await Promise.all(relevantIds.map((id) => getActiveNote(id)));
+  const notes = await Promise.all(relevant.map((entry) => getActiveNote(entry.id)));
 
-  return relevantIds.some((id, index) => {
+  return relevant.some(({ dateId }, index) => {
     const note = notes[index];
-
-    if (!note) {
-      return true;
-    }
-
-    const dateId = visibleCalendarNoteDatesById.get(id)!;
-    return !isCalendarNoteTitleForDate(note.title, dateId, settings);
+    return !note || !isCalendarNoteTitleForDate(note.title, dateId, settings);
   });
 }
 
