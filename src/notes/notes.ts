@@ -93,9 +93,6 @@ export function clearCalendarNoteCaches(): void {
   taskMetadataCache.clear();
 }
 
-export function invalidateAfterSync(): void {
-  taskMetadataCache.clear();
-}
 
 export function invalidateTaskMetadataCache(noteId: string): void {
   taskMetadataCache.delete(noteId);

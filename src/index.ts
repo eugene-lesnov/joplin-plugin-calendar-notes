@@ -17,7 +17,6 @@ import strings, { getLocales, setLocale } from "./core/localization";
 import { isMobilePlatform } from "./core/platform";
 import {
   clearCalendarNoteCaches,
-  invalidateAfterSync,
   clearTaskRepeat,
   createCalendarNoteForDate,
   createCalendarTaskForDate,
@@ -281,7 +280,7 @@ joplin.plugins.register({
     await joplin.workspace.onNoteSelectionChange(handleNoteSelectionChange);
     await joplin.workspace.onSyncComplete(async () => {
       activateFastTaggedTasksPolling();
-      invalidateAfterSync();
+      clearCalendarNoteCaches();
       await scheduleCalendarRefresh();
     });
 
