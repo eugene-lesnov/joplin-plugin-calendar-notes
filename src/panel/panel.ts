@@ -54,10 +54,10 @@ let visibleNotesByDate: Map<string, NoteSummary[]> = new Map();
 let visibleTasksByDate: Map<string, NoteSummary[]> = new Map();
 let visibleOverdueTasks: CalendarTaskWithDate[] = [];
 let showAllOverdueTasks = false;
-let showTaggedTasks = true;
+let showTaggedTasks = false;
 let visibleTaggedTasks: TaggedTaskGroup[] = [];
 let lastTaggedTasksSignature: string | null = null;
-const hiddenTaggedTaskGroupIds = new Set<string>();
+const expandedTaggedTaskGroupIds = new Set<string>();
 let selectedDateId: string | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 let refreshInFlight = false;
@@ -521,7 +521,7 @@ function renderTaggedTasksSectionHtml(
   const toggleClass = showTaggedTasks ? "expanded" : "collapsed";
   const sections = showTaggedTasks
     ? groups.map((group) => {
-      const isVisible = !hiddenTaggedTaskGroupIds.has(group.tagId);
+      const isVisible = expandedTaggedTaskGroupIds.has(group.tagId);
       const groupToggleClass = isVisible ? "expanded" : "collapsed";
       const items = isVisible
         ? group.tasks.map((task) =>
@@ -694,7 +694,7 @@ export async function renderCalendar(): Promise<PanelHtmlMessage | void> {
   visibleTasksByDate = existingMarkers.tasksByDate;
   visibleOverdueTasks = existingMarkers.overdueTasks;
   visibleTaggedTasks = taggedTasks.groups;
-  pruneHiddenTaggedTaskGroups(visibleTaggedTasks);
+  pruneExpandedTaggedTaskGroups(visibleTaggedTasks);
   lastTaggedTasksSignature = buildTaggedTasksSignature(visibleTaggedTasks);
 
   const html = renderCalendarHtml(
@@ -732,12 +732,12 @@ function buildTaggedTasksSignature(groups: readonly TaggedTaskGroup[]): string {
     .join("~");
 }
 
-function pruneHiddenTaggedTaskGroups(groups: readonly TaggedTaskGroup[]): void {
+function pruneExpandedTaggedTaskGroups(groups: readonly TaggedTaskGroup[]): void {
   const visibleGroupIds = new Set(groups.map((group) => group.tagId));
 
-  for (const groupId of hiddenTaggedTaskGroupIds) {
+  for (const groupId of expandedTaggedTaskGroupIds) {
     if (!visibleGroupIds.has(groupId)) {
-      hiddenTaggedTaskGroupIds.delete(groupId);
+      expandedTaggedTaskGroupIds.delete(groupId);
     }
   }
 }
@@ -1089,10 +1089,10 @@ export async function toggleTaggedTaskGroup(tagId: string): Promise<PanelHtmlMes
     return renderVisiblePanel();
   }
 
-  if (hiddenTaggedTaskGroupIds.has(tagId)) {
-    hiddenTaggedTaskGroupIds.delete(tagId);
+  if (expandedTaggedTaskGroupIds.has(tagId)) {
+    expandedTaggedTaskGroupIds.delete(tagId);
   } else {
-    hiddenTaggedTaskGroupIds.add(tagId);
+    expandedTaggedTaskGroupIds.add(tagId);
   }
 
   return renderVisiblePanel();
