@@ -393,10 +393,10 @@ async function getNoteBody(noteId: string): Promise<string> {
   return note.body ?? "";
 }
 
-async function readNoteTaskMetadata(noteId: string): Promise<TaskMetadata> {
+export async function readNoteTaskMetadata(noteId: string, useCache = true): Promise<TaskMetadata> {
   const cached = taskMetadataCache.get(noteId);
 
-  if (cached) {
+  if (useCache && cached) {
     return cached;
   }
 

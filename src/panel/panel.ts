@@ -25,6 +25,7 @@ import {
   getTaggedTasks,
   getTaggedTasksSignature,
   hasCachedMonthMarkers,
+  readNoteTaskMetadata,
   invalidateCalendarMonthMarkers,
   invalidateCalendarMonthMarkersForNote,
   isCalendarNoteTitleForDate,
@@ -853,10 +854,50 @@ function findVisibleNoteInCache(noteId: string, dateId: string): NoteSummary | n
   return note ?? task ?? overdueTask ?? null;
 }
 
-function canPatchVisibleNote(previous: NoteSummary, next: NoteSummary): boolean {
-  return previous.is_todo === next.is_todo
-    && previous.parent_id === next.parent_id
-    && previous.todo_due === next.todo_due;
+function hasRepeatMetadata(note: NoteSummary): boolean {
+  return Boolean(note.metadata?.repeat);
+}
+
+function isVisibleOverdueTask(noteId: string): boolean {
+  return visibleOverdueTasks.some((item) => item.task.id === noteId);
+}
+
+function isSelectedDateTask(noteId: string, dateId: string): boolean {
+  return selectedDateId === dateId
+    && Boolean(visibleTasksByDate.get(dateId)?.some((item) => item.id === noteId));
+}
+
+function isExpandedTaggedTask(noteId: string): boolean {
+  return visibleTaggedTasks.some((group) =>
+    expandedTaggedTaskGroupIds.has(group.tagId)
+      && group.tasks.some((task) => task.id === noteId),
+  );
+}
+
+function hasCompletionChange(previous: NoteSummary, next: NoteSummary): boolean {
+  return previous.todo_completed !== next.todo_completed;
+}
+
+async function canPatchVisibleNote(previous: NoteSummary, next: NoteSummary, dateId: string): Promise<boolean> {
+  if (previous.is_todo !== next.is_todo
+    || previous.parent_id !== next.parent_id
+    || previous.todo_due !== next.todo_due
+    || hasRepeatMetadata(previous)
+  ) {
+    return false;
+  }
+
+  if (next.is_todo === 1 && hasRepeatMetadata({ ...next, metadata: await readNoteTaskMetadata(next.id, false) })) {
+    return false;
+  }
+
+  if (!hasCompletionChange(previous, next)) {
+    return true;
+  }
+
+  return !isVisibleOverdueTask(previous.id)
+    && !isSelectedDateTask(previous.id, dateId)
+    && !isExpandedTaggedTask(previous.id);
 }
 
 function updateVisibleNoteCache(note: NoteSummary, dateId: string): void {
@@ -924,7 +965,7 @@ export async function patchVisibleCalendarNotes(
       settings,
     );
 
-    if (nextDateId !== currentDateId || !canPatchVisibleNote(previous, note)) {
+    if (nextDateId !== currentDateId || !(await canPatchVisibleNote(previous, note, currentDateId))) {
       return renderCalendar();
     }
 
@@ -981,7 +1022,7 @@ export async function patchVisibleCalendarNoteChange(
     settings,
   );
 
-  if (!previous || nextDateId !== currentDateId || !canPatchVisibleNote(previous, note)) {
+  if (!previous || nextDateId !== currentDateId || !(await canPatchVisibleNote(previous, note, currentDateId))) {
     await renderCalendar();
     return true;
   }
