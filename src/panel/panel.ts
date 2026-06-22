@@ -856,7 +856,6 @@ function findVisibleNoteInCache(noteId: string, dateId: string): NoteSummary | n
 function canPatchVisibleNote(previous: NoteSummary, next: NoteSummary): boolean {
   return previous.is_todo === next.is_todo
     && previous.parent_id === next.parent_id
-    && previous.todo_completed === next.todo_completed
     && previous.todo_due === next.todo_due;
 }
 
@@ -889,6 +888,8 @@ function makePatchVisibleNoteMessage(
     title: note.title,
     text,
     overdueText,
+    isTodo: note.is_todo === 1,
+    completed: isTaskCompleted(note),
   };
 }
 
@@ -927,7 +928,7 @@ export async function patchVisibleCalendarNotes(
       return renderCalendar();
     }
 
-    if (previous.title !== note.title) {
+    if (previous.title !== note.title || previous.todo_completed !== note.todo_completed) {
       updateVisibleNoteCache(note, currentDateId);
       patches.push(makePatchVisibleNoteMessage(note, currentDateId, settings));
     }

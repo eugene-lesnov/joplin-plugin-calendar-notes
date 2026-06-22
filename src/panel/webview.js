@@ -186,6 +186,37 @@ function applyPanelHtml(html) {
   lastPanelHtml = html;
 }
 
+function applyTaskCompletionPatch(message) {
+  if (!isMobilePanel() || !message.isTodo) {
+    return;
+  }
+
+  const taskItems = document.querySelectorAll(".day-task[data-note-id]");
+
+  for (const taskItem of taskItems) {
+    if (taskItem.dataset.noteId !== message.id) {
+      continue;
+    }
+
+    if (taskItem.dataset.pending === "true") {
+      continue;
+    }
+
+    taskItem.classList.toggle("completed", message.completed);
+
+    const checkbox = taskItem.querySelector(".task-checkbox[data-note-id]");
+
+    if (checkbox instanceof HTMLInputElement) {
+      checkbox.checked = message.completed;
+      checkbox.disabled = false;
+      checkbox.dataset.completed = message.completed ? "true" : "false";
+      checkbox.title = message.title;
+    }
+  }
+
+  updateSelectedDayTaskMarker();
+}
+
 function applyVisibleNotePatch(message) {
   const items = document.querySelectorAll(".task-title[data-note-id], .day-note[data-note-id]");
 
@@ -199,6 +230,8 @@ function applyVisibleNotePatch(message) {
       ? message.overdueText
       : message.text;
   }
+
+  applyTaskCompletionPatch(message);
 }
 
 function applyPanelResponse(response, force = false) {
