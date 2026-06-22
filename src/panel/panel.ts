@@ -347,7 +347,7 @@ function renderTaskItemHtml(
   const metaHtml = hasMeta ? `<span class="task-meta">${repeatMetaHtml}${alarmHtml}</span>` : "";
   const visibleTitle = datePrefix ? `${datePrefix} ${title}` : title;
 
-  return `<li class="day-task ${completed ? "completed" : ""} ${hasMeta ? "has-meta" : ""}" data-note-id="${escapeHtml(task.id)}">
+  return `<li class="day-task ${completed ? "completed" : ""} ${hasMeta ? "has-meta" : ""}" data-note-id="${escapeHtml(task.id)}" data-created-time="${task.created_time ?? 0}" data-sort-title="${escapeHtml(task.title)}">
     <input
       class="task-checkbox"
       type="checkbox"

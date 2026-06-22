@@ -186,6 +186,17 @@ function applyPanelHtml(html) {
   lastPanelHtml = html;
 }
 
+function compareTaskSortKeys(first, second) {
+  const firstCreatedTime = Number(first.dataset.createdTime || 0);
+  const secondCreatedTime = Number(second.dataset.createdTime || 0);
+
+  if (firstCreatedTime !== secondCreatedTime) {
+    return firstCreatedTime - secondCreatedTime;
+  }
+
+  return (first.dataset.sortTitle || "").localeCompare(second.dataset.sortTitle || "");
+}
+
 function reorderSelectedDayTask(taskItem) {
   const list = taskItem.closest(".day-tasks .selected-day-list");
 
@@ -193,24 +204,27 @@ function reorderSelectedDayTask(taskItem) {
     return;
   }
 
-  if (taskItem.classList.contains("completed")) {
-    const firstCompleted = Array.from(list.children).find((item) =>
-      item !== taskItem && item.classList.contains("day-task") && item.classList.contains("completed"),
-    );
+  const completed = taskItem.classList.contains("completed");
+  const target = Array.from(list.children).find((item) =>
+    item !== taskItem
+    && item.classList.contains("day-task")
+    && item.classList.contains("completed") === completed
+    && compareTaskSortKeys(taskItem, item) < 0,
+  );
 
-    if (firstCompleted) {
-      list.insertBefore(taskItem, firstCompleted);
-    } else {
-      list.appendChild(taskItem);
-    }
-
+  if (target) {
+    list.insertBefore(taskItem, target);
     return;
   }
 
-  const firstCompleted = list.querySelector(".day-task.completed");
+  const nextGroupItem = completed
+    ? null
+    : list.querySelector(".day-task.completed");
 
-  if (firstCompleted) {
-    list.insertBefore(taskItem, firstCompleted);
+  if (nextGroupItem) {
+    list.insertBefore(taskItem, nextGroupItem);
+  } else {
+    list.appendChild(taskItem);
   }
 }
 
@@ -231,6 +245,7 @@ function applyTaskCompletionPatch(message) {
     }
 
     taskItem.classList.toggle("completed", message.completed);
+    taskItem.dataset.sortTitle = message.title;
 
     const checkbox = taskItem.querySelector(".task-checkbox[data-note-id]");
 
