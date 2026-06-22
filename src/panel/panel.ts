@@ -890,10 +890,6 @@ async function canPatchVisibleNote(previous: NoteSummary, next: NoteSummary, dat
   const completionChanged = hasCompletionChange(previous, next);
   const titleChanged = previous.title !== next.title;
 
-  if (!completionChanged && !titleChanged) {
-    return true;
-  }
-
   if (completionChanged
     && (isVisibleOverdueTask(previous.id)
       || isSelectedDateTask(previous.id, dateId)
@@ -904,6 +900,10 @@ async function canPatchVisibleNote(previous: NoteSummary, next: NoteSummary, dat
 
   if (next.is_todo === 1 && hasRepeatMetadata({ ...next, metadata: await readNoteTaskMetadata(next.id, false) })) {
     return false;
+  }
+
+  if (!completionChanged && !titleChanged) {
+    return true;
   }
 
   return true;
