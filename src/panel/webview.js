@@ -186,6 +186,34 @@ function applyPanelHtml(html) {
   lastPanelHtml = html;
 }
 
+function reorderSelectedDayTask(taskItem) {
+  const list = taskItem.closest(".day-tasks .selected-day-list");
+
+  if (!list) {
+    return;
+  }
+
+  if (taskItem.classList.contains("completed")) {
+    const firstCompleted = Array.from(list.children).find((item) =>
+      item !== taskItem && item.classList.contains("day-task") && item.classList.contains("completed"),
+    );
+
+    if (firstCompleted) {
+      list.insertBefore(taskItem, firstCompleted);
+    } else {
+      list.appendChild(taskItem);
+    }
+
+    return;
+  }
+
+  const firstCompleted = list.querySelector(".day-task.completed");
+
+  if (firstCompleted) {
+    list.insertBefore(taskItem, firstCompleted);
+  }
+}
+
 function applyTaskCompletionPatch(message) {
   if (!isMobilePanel() || !message.isTodo) {
     return;
@@ -212,6 +240,8 @@ function applyTaskCompletionPatch(message) {
       checkbox.dataset.completed = message.completed ? "true" : "false";
       checkbox.title = message.title;
     }
+
+    reorderSelectedDayTask(taskItem);
   }
 
   updateSelectedDayTaskMarker();

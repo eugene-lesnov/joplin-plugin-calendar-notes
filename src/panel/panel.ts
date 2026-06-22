@@ -862,11 +862,6 @@ function isVisibleOverdueTask(noteId: string): boolean {
   return visibleOverdueTasks.some((item) => item.task.id === noteId);
 }
 
-function isSelectedDateTask(noteId: string, dateId: string): boolean {
-  return selectedDateId === dateId
-    && Boolean(visibleTasksByDate.get(dateId)?.some((item) => item.id === noteId));
-}
-
 function isExpandedTaggedTask(noteId: string): boolean {
   return visibleTaggedTasks.some((group) =>
     expandedTaggedTaskGroupIds.has(group.tagId)
@@ -892,7 +887,6 @@ async function canPatchVisibleNote(previous: NoteSummary, next: NoteSummary, dat
 
   if (completionChanged
     && (isVisibleOverdueTask(previous.id)
-      || isSelectedDateTask(previous.id, dateId)
       || isExpandedTaggedTask(previous.id))
   ) {
     return false;
