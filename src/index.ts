@@ -187,14 +187,16 @@ async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
   invalidateTaskMetadataCache(event.id);
   await invalidateCalendarMonthCacheForNoteChange(event.id, event.event);
 
+  const isMobile = await isMobilePlatform();
+
+  if (isMobile && await patchVisibleCalendarNoteChange(event.id, event.event)) {
+    return;
+  }
+
   try {
     await syncCalendarTaskCompletionLocation(event.id);
   } catch (error) {
     console.warn("Failed to sync calendar task completion location.", error);
-  }
-
-  if ((await isMobilePlatform()) && await patchVisibleCalendarNoteChange(event.id, event.event)) {
-    return;
   }
 
   if (await shouldRefreshCalendarForNoteChange(event.id, event.event)) {

@@ -281,13 +281,17 @@ function applyVisibleNotePatch(message) {
 
 function applyPanelResponse(response, force = false) {
   if (response?.name === "patchVisibleNote") {
-    applyVisibleNotePatch(response);
+    if (pendingCreateCount === 0) {
+      applyVisibleNotePatch(response);
+    }
     return;
   }
 
   if (response?.name === "patchVisibleNotes") {
-    for (const patch of response.patches) {
-      applyVisibleNotePatch(patch);
+    if (pendingCreateCount === 0) {
+      for (const patch of response.patches) {
+        applyVisibleNotePatch(patch);
+      }
     }
     return;
   }
@@ -479,10 +483,7 @@ async function refreshPanel() {
 }
 
 webviewApi.onMessage((event) => {
-  const payload = event?.message ?? event;
-  if (payload?.name === "setPanelHtml") {
-    applyPanelResponse(payload);
-  }
+  applyPanelResponse(event?.message ?? event);
 });
 
 document.addEventListener("contextmenu", async (event) => {

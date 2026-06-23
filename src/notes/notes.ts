@@ -1155,37 +1155,23 @@ function replaceTaskDateInTitle(
   return `${nextIdentifier} - ${title}`;
 }
 
-type RepeatedTaskContent = {
-  body: string;
-  tagSourceNoteId: string | null;
-};
-
-async function renderRepeatedTaskContent(
+async function renderRepeatedTaskBody(
   previousTask: NoteSummary,
   nextDateId: string,
   nextTitle: string,
   settings: CalendarSettings,
   createdAt: Date,
-): Promise<RepeatedTaskContent> {
+): Promise<string> {
   if (!settings.taskTemplatePath) {
-    return {
-      body: previousTask.body ?? "",
-      tagSourceNoteId: previousTask.id,
-    };
+    return previousTask.body ?? "";
   }
 
   try {
     const templateSource = await readNoteTemplateSource(settings.taskTemplatePath);
-    return {
-      body: renderNoteTemplate(templateSource.body, nextDateId, nextTitle, createdAt),
-      tagSourceNoteId: templateSource.noteId,
-    };
+    return renderNoteTemplate(templateSource.body, nextDateId, nextTitle, createdAt);
   } catch (error) {
-    console.warn("Failed to read repeated task template. Copying previous body and tags.", error);
-    return {
-      body: previousTask.body ?? "",
-      tagSourceNoteId: previousTask.id,
-    };
+    console.warn("Failed to read repeated task template. Copying previous body.", error);
+    return previousTask.body ?? "";
   }
 }
 
@@ -1226,7 +1212,7 @@ async function createNextRepeatedTask(
   const createdAt = new Date();
   const dayStart = startOfLocalDayMs(nextDateId);
   const nextAlarm = shiftAlarmToDate(task.todo_due, dateId, nextDateId);
-  const content = await renderRepeatedTaskContent(
+  const body = await renderRepeatedTaskBody(
     task,
     nextDateId,
     nextTitle,
@@ -1235,7 +1221,7 @@ async function createNextRepeatedTask(
   );
   const payload: Record<string, unknown> = {
     title: nextTitle,
-    body: content.body,
+    body,
     parent_id: parentId,
     is_todo: 1,
     todo_completed: 0,
@@ -1249,7 +1235,7 @@ async function createNextRepeatedTask(
   }
 
   const created = await joplin.data.post(["notes"], null, payload) as NoteSummary;
-  await copyNoteTags(content.tagSourceNoteId, created.id);
+  await copyNoteTags(task.id, created.id);
   await writeNoteTaskMetadata(created.id, metadata);
 }
 
