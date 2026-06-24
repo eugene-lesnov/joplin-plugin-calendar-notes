@@ -347,7 +347,7 @@ function renderTaskItemHtml(
   const metaHtml = hasMeta ? `<span class="task-meta">${repeatMetaHtml}${alarmHtml}</span>` : "";
   const visibleTitle = datePrefix ? `${datePrefix} ${title}` : title;
 
-  return `<li class="day-task ${completed ? "completed" : ""} ${hasMeta ? "has-meta" : ""}" data-note-id="${escapeHtml(task.id)}" data-created-time="${task.created_time ?? 0}" data-sort-title="${escapeHtml(task.title)}">
+  return `<li class="day-task ${completed ? "completed" : ""} ${hasMeta ? "has-meta" : ""}" data-note-id="${escapeHtml(task.id)}" data-created-time="${task.created_time ?? 0}" data-alarm-time="${completed ? 0 : task.todo_due ?? 0}" data-sort-title="${escapeHtml(task.title)}">
     <input
       class="task-checkbox"
       type="checkbox"
@@ -926,6 +926,8 @@ function makePatchVisibleNoteMessage(
     ? `${formatTaskDateLabel(dateId)} ${text}`
     : text;
 
+  const completed = isTaskCompleted(note);
+
   return {
     name: "patchVisibleNote",
     id: note.id,
@@ -933,7 +935,8 @@ function makePatchVisibleNoteMessage(
     text,
     overdueText,
     isTodo: note.is_todo === 1,
-    completed: isTaskCompleted(note),
+    completed,
+    alarmTime: completed ? 0 : note.todo_due ?? 0,
   };
 }
 

@@ -42,6 +42,7 @@ export type PatchVisibleNoteMessage = {
   overdueText: string;
   isTodo: boolean;
   completed: boolean;
+  alarmTime: number;
 };
 
 export type PatchVisibleNotesMessage = {

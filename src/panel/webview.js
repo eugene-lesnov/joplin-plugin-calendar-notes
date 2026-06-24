@@ -187,6 +187,19 @@ function applyPanelHtml(html) {
 }
 
 function compareTaskSortKeys(first, second) {
+  const firstAlarmTime = Number(first.dataset.alarmTime || 0);
+  const secondAlarmTime = Number(second.dataset.alarmTime || 0);
+  const firstHasAlarm = firstAlarmTime > 0;
+  const secondHasAlarm = secondAlarmTime > 0;
+
+  if (firstHasAlarm !== secondHasAlarm) {
+    return firstHasAlarm ? -1 : 1;
+  }
+
+  if (firstHasAlarm && firstAlarmTime !== secondAlarmTime) {
+    return firstAlarmTime - secondAlarmTime;
+  }
+
   const firstCreatedTime = Number(first.dataset.createdTime || 0);
   const secondCreatedTime = Number(second.dataset.createdTime || 0);
 
@@ -246,6 +259,7 @@ function applyTaskCompletionPatch(message) {
 
     taskItem.classList.toggle("completed", message.completed);
     taskItem.dataset.sortTitle = message.title;
+    taskItem.dataset.alarmTime = String(message.alarmTime || 0);
 
     const checkbox = taskItem.querySelector(".task-checkbox[data-note-id]");
 

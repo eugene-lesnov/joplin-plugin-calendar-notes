@@ -803,6 +803,19 @@ export function sortTasks(first: NoteSummary, second: NoteSummary): number {
     return firstCompleted ? 1 : -1;
   }
 
+  const firstAlarmTime = firstCompleted ? 0 : first.todo_due ?? 0;
+  const secondAlarmTime = secondCompleted ? 0 : second.todo_due ?? 0;
+  const firstHasAlarm = firstAlarmTime > 0;
+  const secondHasAlarm = secondAlarmTime > 0;
+
+  if (firstHasAlarm !== secondHasAlarm) {
+    return firstHasAlarm ? -1 : 1;
+  }
+
+  if (firstHasAlarm && firstAlarmTime !== secondAlarmTime) {
+    return firstAlarmTime - secondAlarmTime;
+  }
+
   const createdTimeComparison = (first.created_time ?? 0) - (second.created_time ?? 0);
 
   if (createdTimeComparison !== 0) {
