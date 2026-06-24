@@ -803,8 +803,8 @@ export function sortTasks(first: NoteSummary, second: NoteSummary): number {
     return firstCompleted ? 1 : -1;
   }
 
-  const firstAlarmTime = firstCompleted ? 0 : first.todo_due ?? 0;
-  const secondAlarmTime = secondCompleted ? 0 : second.todo_due ?? 0;
+  const firstAlarmTime = first.todo_due ?? 0;
+  const secondAlarmTime = second.todo_due ?? 0;
   const firstHasAlarm = firstAlarmTime > 0;
   const secondHasAlarm = secondAlarmTime > 0;
 
