@@ -294,6 +294,13 @@ button,
     row-gap: 3px;
 }
 
+#calendar-notes-root[data-mobile="true"] .day-task.has-meta.completed {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+        "checkbox title"
+        "checkbox meta";
+}
+
 #calendar-notes-root[data-mobile="true"] .day-task.has-meta .task-checkbox {
     grid-area: checkbox;
     align-self: start;
