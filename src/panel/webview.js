@@ -241,6 +241,19 @@ function reorderSelectedDayTask(taskItem) {
   }
 }
 
+function updateTaskAlarmOverdueState(taskItem, message) {
+  const alarm = taskItem.querySelector(".task-alarm");
+
+  if (!(alarm instanceof HTMLElement)) {
+    return;
+  }
+
+  const alarmTime = Number(message.alarmTime || 0);
+  const overdue = !message.completed && alarmTime > 0 && alarmTime < Date.now();
+
+  alarm.classList.toggle("overdue", overdue);
+}
+
 function applyTaskCompletionPatch(message) {
   if (!isMobilePanel() || !message.isTodo) {
     return;
@@ -270,6 +283,7 @@ function applyTaskCompletionPatch(message) {
       checkbox.title = message.title;
     }
 
+    updateTaskAlarmOverdueState(taskItem, message);
     reorderSelectedDayTask(taskItem);
   }
 
