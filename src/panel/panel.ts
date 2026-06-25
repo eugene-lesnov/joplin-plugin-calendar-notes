@@ -503,7 +503,7 @@ function renderOverdueTasksSectionHtml(
   return `
     <section class="overdue-tasks day-section">
       <div class="overdue-summary">
-        <div class="selected-day-header overdue-header">⚠ ${escapeHtml(heading)}</div>
+        <div class="selected-day-header overdue-header">${escapeHtml(heading)}</div>
         <span role="button" tabindex="0" class="overdue-toggle ${toggleClass}" data-action="toggleOverdueTasks" aria-label="${escapeHtml(heading)}"></span>
       </div>
       ${showAllOverdueTasks
