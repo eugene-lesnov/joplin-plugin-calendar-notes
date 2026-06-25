@@ -2,7 +2,6 @@ import joplin from "api";
 import { MenuItemLocation, ToolbarButtonLocation } from "api/types";
 
 import {
-  SETTING_DAY_IDENTIFIER_FORMAT,
   SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_NOTEBOOK_NOTES_PATH,
   SETTING_COMPLETED_TASKS_PATH,
@@ -48,7 +47,7 @@ import {
   toggleTaggedTaskGroup,
   toggleTaggedTasks,
 } from "./panel/panel";
-import { registerSettings } from "./settings/settings";
+import { getCalendarSettings, registerSettings } from "./settings/settings";
 import type {
   CalendarMessage,
   NoteChangeEvent,
@@ -65,7 +64,6 @@ let previousSelectedNoteIds: string[] = [];
 let taskCompletionQueue = Promise.resolve();
 
 const RENDER_AFFECTING_SETTINGS = [
-  SETTING_DAY_IDENTIFIER_FORMAT,
   SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_WEEK_START,
   SETTING_NOTEBOOK_NOTES_PATH,
@@ -185,11 +183,14 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
 async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
   activateFastTaggedTasksPolling();
   invalidateTaskMetadataCache(event.id);
-  await invalidateCalendarMonthCacheForNoteChange(event.id, event.event);
+
+  const settings = await getCalendarSettings();
+
+  await invalidateCalendarMonthCacheForNoteChange(event.id, event.event, settings);
 
   const isMobile = await isMobilePlatform();
 
-  if (isMobile && await patchVisibleCalendarNoteChange(event.id, event.event)) {
+  if (isMobile && await patchVisibleCalendarNoteChange(event.id, event.event, settings)) {
     return;
   }
 
@@ -199,7 +200,7 @@ async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
     console.warn("Failed to sync calendar task completion location.", error);
   }
 
-  if (await shouldRefreshCalendarForNoteChange(event.id, event.event)) {
+  if (await shouldRefreshCalendarForNoteChange(event.id, event.event, settings)) {
     await scheduleCalendarRefresh();
   }
 }

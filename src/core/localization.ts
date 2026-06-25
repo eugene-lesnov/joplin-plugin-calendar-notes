@@ -2,15 +2,6 @@ import type { RepeatFrequency } from "./types";
 
 export interface AppLocalization {
   settingsSectionLabel: string;
-  dayIdentifierFormatLabel: string;
-  dayIdentifierFormatDescription: string;
-  dayIdentifierFormatDotsLabel: string;
-  dayIdentifierFormatIsoLabel: string;
-  dayIdentifierFormatSlashesLabel: string;
-  dayIdentifierFormatUsLabel: string;
-  dayIdentifierFormatCompactLabel: string;
-  dayIdentifierFormatDashesEuLabel: string;
-  dayIdentifierFormatDashesUsLabel: string;
   newNoteTitleFormatLabel: string;
   newNoteTitleFormatDescription: string;
   newNoteTitleFormatDateAndTimeLabel: string;
@@ -71,16 +62,6 @@ const PLACEHOLDER_PATTERN = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
 
 const defaultStrings: AppLocalization = {
   settingsSectionLabel: "Calendar Notes",
-  dayIdentifierFormatLabel: "Date format",
-  dayIdentifierFormatDescription:
-    "Date format in note titles. The plugin uses this date to understand which day a note belongs to.",
-  dayIdentifierFormatDotsLabel: "25.01.2026",
-  dayIdentifierFormatIsoLabel: "2026-01-25",
-  dayIdentifierFormatSlashesLabel: "25/01/2026",
-  dayIdentifierFormatUsLabel: "01/25/2026",
-  dayIdentifierFormatCompactLabel: "20260125",
-  dayIdentifierFormatDashesEuLabel: "25-01-2026",
-  dayIdentifierFormatDashesUsLabel: "01-25-2026",
   newNoteTitleFormatLabel: "New note title",
   newNoteTitleFormatDescription:
     "How notes created from the calendar will be named.",
@@ -151,16 +132,6 @@ const defaultStrings: AppLocalization = {
 const localizations: Record<string, Partial<AppLocalization>> = {
   ru: {
     settingsSectionLabel: "Calendar Notes",
-    dayIdentifierFormatLabel: "Формат даты",
-    dayIdentifierFormatDescription:
-      "Формат даты в названии заметки. Плагин использует эту дату, чтобы понять, к какому дню относится заметка.",
-    dayIdentifierFormatDotsLabel: "25.01.2026",
-    dayIdentifierFormatIsoLabel: "2026-01-25",
-    dayIdentifierFormatSlashesLabel: "25/01/2026",
-    dayIdentifierFormatUsLabel: "01/25/2026",
-    dayIdentifierFormatCompactLabel: "20260125",
-    dayIdentifierFormatDashesEuLabel: "25-01-2026",
-    dayIdentifierFormatDashesUsLabel: "01-25-2026",
     newNoteTitleFormatLabel: "Название новой заметки",
     newNoteTitleFormatDescription:
       "Как будут называться заметки, созданные из календаря.",

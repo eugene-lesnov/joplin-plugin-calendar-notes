@@ -555,11 +555,13 @@ async function copyNoteTags(sourceNoteId: string | null, targetNoteId: string): 
   }
 }
 
-function getDateReplacements(dateId: string): Record<string, string> {
+function getDateReplacements(
+  dateId: string,
+  dayIdentifier: string,
+): Record<string, string> {
   const date = parseDateId(dateId);
   const replacements: Record<string, string> = {
-    date: dateId,
-    isoDate: dateId,
+    date: dayIdentifier,
   };
 
   for (const [token, value] of getDateTokenValues(date)) {
@@ -573,6 +575,7 @@ export function renderNoteTemplate(
   rawTemplate: string,
   dateId: string,
   title: string,
+  settings: CalendarSettings,
   createdAt = new Date(),
 ): string {
   if (!rawTemplate.trim()) {
@@ -580,6 +583,7 @@ export function renderNoteTemplate(
   }
 
   const date = parseDateId(dateId);
+  const dayIdentifier = buildDayIdentifier(dateId, settings);
 
   let body = rawTemplate.replace(/\\n/g, "\n");
 
@@ -591,7 +595,7 @@ export function renderNoteTemplate(
     title,
     noteTitle: title,
     time: formatTime(createdAt),
-    ...getDateReplacements(dateId),
+    ...getDateReplacements(dateId, dayIdentifier),
   };
 
   body = body.replace(TEXT_PLACEHOLDER_PATTERN, (match, key: string) => {
@@ -625,7 +629,7 @@ function renderNoteTitle(
     noteTitle: dayIdentifier,
     dayIdentifier,
     time: formatTime(createdAt),
-    ...getDateReplacements(dateId),
+    ...getDateReplacements(dateId, dayIdentifier),
   };
 
   title = title.replace(TEXT_PLACEHOLDER_PATTERN, (match, key: string) => {
@@ -1052,7 +1056,7 @@ async function createCalendarNote(
     return null;
   }
 
-  const body = renderNoteTemplate(templateSource.body, dateId, title, createdAt);
+  const body = renderNoteTemplate(templateSource.body, dateId, title, settings, createdAt);
   const dayStart = startOfLocalDayMs(dateId);
   const created = await joplin.data.post(["notes"], null, {
     title,
@@ -1096,7 +1100,7 @@ async function createCalendarTask(
     return null;
   }
 
-  const body = renderNoteTemplate(templateSource.body, dateId, title, createdAt);
+  const body = renderNoteTemplate(templateSource.body, dateId, title, settings, createdAt);
   const dayStart = startOfLocalDayMs(dateId);
   const created = await joplin.data.post(["notes"], null, {
     title,
@@ -1181,7 +1185,7 @@ async function renderRepeatedTaskBody(
 
   try {
     const templateSource = await readNoteTemplateSource(settings.taskTemplatePath);
-    return renderNoteTemplate(templateSource.body, nextDateId, nextTitle, createdAt);
+    return renderNoteTemplate(templateSource.body, nextDateId, nextTitle, settings, createdAt);
   } catch (error) {
     console.warn("Failed to read repeated task template. Copying previous body.", error);
     return previousTask.body ?? "";

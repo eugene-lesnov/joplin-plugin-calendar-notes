@@ -2,23 +2,15 @@ import joplin from "api";
 import { SettingItemType } from "api/types";
 
 import {
-  DAY_IDENTIFIER_FORMAT_COMPACT,
-  DAY_IDENTIFIER_FORMAT_DASHES_EU,
-  DAY_IDENTIFIER_FORMAT_DASHES_US,
-  DAY_IDENTIFIER_FORMAT_DOTS,
-  DAY_IDENTIFIER_FORMAT_ISO,
-  DAY_IDENTIFIER_FORMAT_SLASHES,
-  DAY_IDENTIFIER_FORMAT_US,
-  DAY_IDENTIFIER_FORMATS,
-  DEFAULT_DAY_IDENTIFIER_FORMAT,
   DEFAULT_NEW_NOTE_TITLE_FORMAT,
   DEFAULT_NOTEBOOK_PATH_PATTERN,
   DEFAULT_WEEK_START,
+  JOPLIN_DATE_FORMAT_SETTING_KEY,
+  JOPLIN_DEFAULT_DATE_FORMAT,
   NEW_NOTE_TITLE_FORMAT_DATE_AND_TIME,
   NEW_NOTE_TITLE_FORMAT_DATE_ONLY,
   NEW_NOTE_TITLE_FORMATS,
   SETTINGS_SECTION,
-  SETTING_DAY_IDENTIFIER_FORMAT,
   SETTING_NEW_NOTE_TITLE_FORMAT,
   SETTING_NOTEBOOK_NOTES_PATH,
   SETTING_COMPLETED_TASKS_PATH,
@@ -29,18 +21,28 @@ import {
   SETTING_TAGGED_TASKS_TAGS,
   SETTING_WEEK_START,
 } from "../core/constants";
-import { weekdayLongName } from "../core/dateUtils";
+import { momentFormatToPattern, weekdayLongName } from "../core/dateUtils";
 import strings from "../core/localization";
 import type { CalendarSettings, WeekStart } from "../core/types";
 
-function normalizeDayIdentifierFormat(value: unknown): string {
-  const format = String(value ?? "").trim();
+const DATE_FORMAT_FALLBACK_WARNING =
+  "Failed to read Joplin date format. Using default date format.";
 
-  if (DAY_IDENTIFIER_FORMATS.includes(format)) {
-    return format;
+async function resolveDayIdentifierFormat(): Promise<string> {
+  try {
+    const [joplinDateFormat] = await joplin.settings.globalValues([
+      JOPLIN_DATE_FORMAT_SETTING_KEY,
+    ]);
+    const format = String(joplinDateFormat ?? "").trim();
+
+    if (format) {
+      return momentFormatToPattern(format);
+    }
+  } catch (error) {
+    console.warn(DATE_FORMAT_FALLBACK_WARNING, error);
   }
 
-  return DEFAULT_DAY_IDENTIFIER_FORMAT;
+  return momentFormatToPattern(JOPLIN_DEFAULT_DATE_FORMAT);
 }
 
 function normalizeNewNoteTitleFormat(value: unknown): string {
@@ -74,23 +76,23 @@ function normalizeTaggedTasksTags(value: unknown): string {
 }
 
 export async function getCalendarSettings(): Promise<CalendarSettings> {
-  const values = await joplin.settings.values([
-    SETTING_DAY_IDENTIFIER_FORMAT,
-    SETTING_NEW_NOTE_TITLE_FORMAT,
-    SETTING_WEEK_START,
-    SETTING_NOTEBOOK_NOTES_PATH,
-    SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
-    SETTING_NOTE_TEMPLATE_PATH,
-    SETTING_TASKS_PATH,
-    SETTING_COMPLETED_TASKS_PATH,
-    SETTING_TASK_TEMPLATE_PATH,
-    SETTING_TAGGED_TASKS_TAGS,
+  const [values, dayIdentifierFormat] = await Promise.all([
+    joplin.settings.values([
+      SETTING_NEW_NOTE_TITLE_FORMAT,
+      SETTING_WEEK_START,
+      SETTING_NOTEBOOK_NOTES_PATH,
+      SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
+      SETTING_NOTE_TEMPLATE_PATH,
+      SETTING_TASKS_PATH,
+      SETTING_COMPLETED_TASKS_PATH,
+      SETTING_TASK_TEMPLATE_PATH,
+      SETTING_TAGGED_TASKS_TAGS,
+    ]),
+    resolveDayIdentifierFormat(),
   ]);
 
   return {
-    dayIdentifierFormat: normalizeDayIdentifierFormat(
-      values[SETTING_DAY_IDENTIFIER_FORMAT],
-    ),
+    dayIdentifierFormat,
     newNoteTitleFormat: normalizeNewNoteTitleFormat(
       values[SETTING_NEW_NOTE_TITLE_FORMAT],
     ),
@@ -123,25 +125,6 @@ export async function registerSettings(): Promise<void> {
   });
 
   await joplin.settings.registerSettings({
-    [SETTING_DAY_IDENTIFIER_FORMAT]: {
-      value: DEFAULT_DAY_IDENTIFIER_FORMAT,
-      type: SettingItemType.String,
-      section: SETTINGS_SECTION,
-      public: true,
-      label: strings.dayIdentifierFormatLabel,
-      description: strings.dayIdentifierFormatDescription,
-      isEnum: true,
-      options: {
-        [DAY_IDENTIFIER_FORMAT_DOTS]: strings.dayIdentifierFormatDotsLabel,
-        [DAY_IDENTIFIER_FORMAT_ISO]: strings.dayIdentifierFormatIsoLabel,
-        [DAY_IDENTIFIER_FORMAT_SLASHES]: strings.dayIdentifierFormatSlashesLabel,
-        [DAY_IDENTIFIER_FORMAT_US]: strings.dayIdentifierFormatUsLabel,
-        [DAY_IDENTIFIER_FORMAT_COMPACT]: strings.dayIdentifierFormatCompactLabel,
-        [DAY_IDENTIFIER_FORMAT_DASHES_EU]: strings.dayIdentifierFormatDashesEuLabel,
-        [DAY_IDENTIFIER_FORMAT_DASHES_US]: strings.dayIdentifierFormatDashesUsLabel,
-      },
-    },
-
     [SETTING_NEW_NOTE_TITLE_FORMAT]: {
       value: DEFAULT_NEW_NOTE_TITLE_FORMAT,
       type: SettingItemType.String,

@@ -181,11 +181,25 @@ export function parseDateFromTitle(
         }
     }
 
+    if (year < 100) {
+        year += 2000;
+    }
+
     if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month - 1)) {
         return null;
     }
 
     return { year, month: month - 1, day };
+}
+
+export function momentFormatToPattern(format: string): string {
+    const normalized = format.trim();
+
+    if (!normalized) {
+        return DEFAULT_DAY_IDENTIFIER_FORMAT;
+    }
+
+    return `{{${normalized}}}`;
 }
 
 export function getDateTokenValues(date: CalendarDate): Array<[string, string]> {

@@ -996,6 +996,7 @@ export async function patchVisibleCalendarNotes(
 export async function patchVisibleCalendarNoteChange(
   noteId: string,
   eventType: number,
+  settings?: CalendarSettings,
 ): Promise<boolean> {
   if (!(await isPanelVisible())) {
     return true;
@@ -1019,13 +1020,13 @@ export async function patchVisibleCalendarNoteChange(
     return true;
   }
 
-  const settings = await getCalendarSettings();
+  const effectiveSettings = settings ?? (await getCalendarSettings());
   const previous = findVisibleNoteInCache(noteId, currentDateId);
   const nextDateId = resolveCalendarNoteDateId(
     note.title,
     currentYear,
     currentMonth,
-    settings,
+    effectiveSettings,
   );
 
   if (!previous || nextDateId !== currentDateId || !(await canPatchVisibleNote(previous, note, currentDateId))) {
@@ -1034,7 +1035,7 @@ export async function patchVisibleCalendarNoteChange(
   }
 
   updateVisibleNoteCache(note, currentDateId);
-  postPanelMessage(makePatchVisibleNoteMessage(note, currentDateId, settings));
+  postPanelMessage(makePatchVisibleNoteMessage(note, currentDateId, effectiveSettings));
   return true;
 }
 
@@ -1047,6 +1048,7 @@ function isVisibleTaggedTask(noteId: string): boolean {
 export async function invalidateCalendarMonthCacheForNoteChange(
   noteId: string,
   eventType: number,
+  settings?: CalendarSettings,
 ): Promise<void> {
   if (!hasCachedMonthMarkers()) {
     return;
@@ -1064,8 +1066,8 @@ export async function invalidateCalendarMonthCacheForNoteChange(
     return;
   }
 
-  const settings = await getCalendarSettings();
-  const dateId = resolveAnyCalendarNoteDateId(note.title, settings);
+  const effectiveSettings = settings ?? (await getCalendarSettings());
+  const dateId = resolveAnyCalendarNoteDateId(note.title, effectiveSettings);
 
   if (dateId) {
     const date = parseDateId(dateId);
@@ -1076,6 +1078,7 @@ export async function invalidateCalendarMonthCacheForNoteChange(
 export async function shouldRefreshCalendarForNoteChange(
   noteId: string,
   eventType: number,
+  settings?: CalendarSettings,
 ): Promise<boolean> {
   if (!(await isPanelVisible())) {
     return false;
@@ -1095,10 +1098,10 @@ export async function shouldRefreshCalendarForNoteChange(
     return false;
   }
 
-  const settings = await getCalendarSettings();
+  const effectiveSettings = settings ?? (await getCalendarSettings());
 
   return Boolean(
-    resolveCalendarNoteDateId(note.title, currentYear, currentMonth, settings),
+    resolveCalendarNoteDateId(note.title, currentYear, currentMonth, effectiveSettings),
   );
 }
 
@@ -1131,6 +1134,7 @@ export async function showCalendarPanel(): Promise<void> {
     selectedDateId = getTodayDateId();
   }
 
+  panelShellReady = false;
   await renderCalendar();
   await joplin.views.panels.show(panelHandle, true);
 }

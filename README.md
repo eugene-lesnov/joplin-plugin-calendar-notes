@@ -9,9 +9,9 @@
 - Click a day to select it; sections below the calendar list that day's tasks and notes.
 - Create Joplin todo tasks for a selected day, complete them from the calendar panel, configure simple recurring tasks, see task reminders, and keep overdue tasks visible in one place.
 - Show undated todo tasks with configured tags in a separate collapsible section.
-- Simple presets for date format and new note titles.
+- Date format follows Joplin's global date format (Tools → Options → General → Date format), with simple presets for new note titles.
 - Separate notebooks and nested structures for calendar notes and tasks.
-- Optional note and task templates with placeholders (`{{title}}`, `{{date}}`, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
+- Optional note and task templates with placeholders (`{{title}}`, `{{date}}` in Joplin's date format, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
 - Week starts on Monday or Sunday.
 - English and Russian UI.
 
@@ -27,27 +27,27 @@ Joplin **3.5** or newer.
 
 ## Settings
 
+The date used in calendar note titles follows Joplin's global **Date format** (Tools → Options → General → Date format); there is no separate plugin setting for it.
+
 | Setting | Purpose |
 | --- | --- |
-| Date format | How the date is written in calendar note titles, e.g. `25.01.2026`, `2026-01-25`, `01/25/2026` |
 | New note title | Title preset for notes created by the plugin: date and time, or date with automatic numbering |
 | Week starts on | Monday or Sunday |
 | Notes: notebook | Notebook path for new calendar notes, e.g. `Calendar notes`; missing notebooks are created automatically |
 | Notes: nested notebooks | Optional path inside the notes notebook, e.g. `{{year}}/{{month}}` |
 | Notes: new note template | Joplin note used as a body template for new notes, e.g. `Templates/Calendar note`; template tags are copied to created notes |
 | Tasks: notebook | Notebook path for new active todo tasks, e.g. `Tasks`; missing notebooks are created automatically |
-| Tasks: nested notebooks | Optional path inside the tasks notebook, e.g. `{{year}}/{{month}}` |
 | Tasks: completed notebook | Notebook path where completed tasks are moved, e.g. `Completed tasks`; missing notebooks are created automatically |
 | Tasks: new task template | Joplin note used as a body template for new todo tasks, e.g. `Templates/Calendar task`; template tags are copied to created tasks |
 | Tasks: tags (without date) | Comma-separated tag names for undated todo tasks shown in the calendar panel, e.g. `Watch,Do,Read` |
 
 ## How notes are matched
 
-Notes are matched only inside the configured notes notebook and its nested notebooks. Active Joplin todo tasks are matched only inside the configured tasks notebook and its nested notebooks. Completed tasks are moved to the configured completed tasks notebook. An item belongs to a day when its title starts with the selected date format, so renamed items like `25.01.2026 meeting` remain visible for that day. New notes and tasks are created in their own configured notebooks. If a nested structure is set, missing nested notebooks are created automatically.
+An item belongs to a day when its title starts with the date written in Joplin's date format, so renamed items like `25.01.2026 meeting` remain visible for that day.
 
 ## Undated tagged tasks
 
-The calendar panel can show todo tasks with configured tags in a separate collapsible section. A task is included only when it is a Joplin todo, has one of the configured tags, has no Joplin due date, and its title is not matched to any calendar day by the plugin date format. This keeps dated calendar tasks in their day sections and uses the tagged section as an undated backlog.
+has no Joplin due date, and its title is not matched to any calendar day by Joplin's date format.
 
 ## Recurring tasks
 
