@@ -254,7 +254,7 @@ function updateTaskAlarmOverdueState(taskItem, message) {
 }
 
 function applyTaskCompletionPatch(message) {
-  if (!isMobilePanel() || !message.isTodo) {
+  if (!message.isTodo) {
     return;
   }
 
@@ -307,6 +307,13 @@ function applyPanelResponse(response, force = false) {
   if (response?.name === "patchVisibleNote") {
     if (pendingCreateCount === 0) {
       applyVisibleNotePatch(response);
+    }
+    return;
+  }
+
+  if (response?.name === "patchTaskCompletion") {
+    if (pendingCreateCount === 0) {
+      applyTaskCompletionPatch(response);
     }
     return;
   }
@@ -611,10 +618,13 @@ async function handleTaskToggle(target) {
   const requestVersion = panelVersion;
 
   try {
+    const taskItem = target.closest(".day-task");
     const response = await webviewApi.postMessage({
       name: "toggleTask",
       id: target.dataset.noteId,
       completed: wasCompleted,
+      title: target.title,
+      alarmTime: Number(taskItem?.dataset.alarmTime || 0),
     });
 
     if (requestVersion === panelVersion) {

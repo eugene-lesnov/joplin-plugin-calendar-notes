@@ -23,7 +23,6 @@ import {
   compareCalendarNotesByTitle,
   getExistingCalendarNoteMarkers,
   getTaggedTasks,
-  getTaggedTasksSignature,
   hasCachedMonthMarkers,
   readNoteTaskMetadata,
   invalidateCalendarMonthMarkers,
@@ -45,6 +44,7 @@ import type {
   PatchVisibleNoteMessage,
   PatchVisibleNotesMessage,
   TaggedTaskGroup,
+  TaggedTasksResult,
 } from "../core/types";
 
 const CALENDAR_REFRESH_DEBOUNCE_MS = 250;
@@ -689,12 +689,14 @@ function renderCalendarHtml(
 	`;
 }
 
-export async function renderCalendar(): Promise<PanelHtmlMessage | void> {
+export async function renderCalendar(
+  preloadedTaggedTasks?: TaggedTasksResult,
+): Promise<PanelHtmlMessage | void> {
   const mySeq = ++renderSeq;
   const settings = await getCalendarSettings();
   const [existingMarkers, taggedTasks] = await Promise.all([
     getExistingCalendarNoteMarkers(currentYear, currentMonth, settings),
-    getTaggedTasks(settings),
+    preloadedTaggedTasks ?? getTaggedTasks(settings),
   ]);
 
   if (mySeq !== renderSeq) {
@@ -802,10 +804,11 @@ async function pollTaggedTasks(): Promise<void> {
       return;
     }
 
-    const signature = await getTaggedTasksSignature(settings);
+    const taggedTasks = await getTaggedTasks(settings);
+    const signature = buildTaggedTasksSignature(taggedTasks.groups);
 
     if (signature !== lastTaggedTasksSignature) {
-      await renderCalendar();
+      await renderCalendar(taggedTasks);
     }
   } finally {
     taggedTasksPollInFlight = false;

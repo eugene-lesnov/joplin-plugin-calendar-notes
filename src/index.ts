@@ -19,7 +19,6 @@ import {
   clearTaskRepeat,
   createCalendarNoteForDate,
   createCalendarTaskForDate,
-  invalidateTaskMetadataCache,
   setCalendarTaskCompleted,
   setTaskRepeat,
   syncCalendarTaskCompletionLocation,
@@ -147,7 +146,14 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
       return renderCalendar();
     }
 
-    return;
+    return {
+      name: "patchTaskCompletion",
+      id: message.id,
+      title: message.title,
+      isTodo: true,
+      completed: !message.completed,
+      alarmTime: message.alarmTime,
+    };
   }
 
   if (message.name === "setTaskRepeat") {
@@ -202,7 +208,6 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
 
 async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
   activateFastTaggedTasksPolling();
-  invalidateTaskMetadataCache(event.id);
 
   const settings = await getCalendarSettings();
 

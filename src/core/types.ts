@@ -22,7 +22,7 @@ export type CalendarMessage =
   | { name: "openNote"; id: string }
   | { name: "createNote"; date: string }
   | { name: "createTask"; date: string }
-  | { name: "toggleTask"; id: string; completed: boolean }
+  | { name: "toggleTask"; id: string; completed: boolean; title: string; alarmTime: number }
   | { name: "setTaskRepeat"; id: string }
   | { name: "clearTaskRepeat"; id: string }
   | { name: "toggleOverdueTasks" }
@@ -56,7 +56,16 @@ export type PatchVisibleNotesMessage = {
   patches: PatchVisibleNoteMessage[];
 };
 
-export type PanelMessage = PanelHtmlMessage | PatchVisibleNoteMessage | PatchVisibleNotesMessage;
+export type PatchTaskCompletionMessage = {
+  name: "patchTaskCompletion";
+  id: string;
+  title: string;
+  isTodo: true;
+  completed: boolean;
+  alarmTime: number;
+};
+
+export type PanelMessage = PanelHtmlMessage | PatchVisibleNoteMessage | PatchVisibleNotesMessage | PatchTaskCompletionMessage;
 
 export type NoteSummary = {
   id: string;

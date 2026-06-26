@@ -104,11 +104,6 @@ export function clearCalendarNoteCaches(): void {
   markersByMonth.clear();
 }
 
-
-export function invalidateTaskMetadataCache(noteId: string): void {
-  taskMetadataCache.delete(noteId);
-}
-
 export function hasCachedMonthMarkers(): boolean {
   return markersByMonth.size > 0;
 }
@@ -252,34 +247,6 @@ export async function getTaggedTasks(settings: CalendarSettings): Promise<Tagged
   return { groups };
 }
 
-export async function getTaggedTasksSignature(settings: CalendarSettings): Promise<string> {
-  const tagNames = parseTaggedTaskTagNames(settings.taggedTasksTags);
-
-  if (tagNames.size === 0) {
-    return "";
-  }
-
-  const tagsByName = await getRequestedTags(tagNames);
-  const signatures: string[] = [];
-
-  for (const tagName of tagNames) {
-    const tags = tagsByName.get(tagName) ?? [];
-
-    if (tags.length === 0) {
-      continue;
-    }
-
-    const taskSignatures = (await getTaggedTodoNotes(tags, settings))
-      .map((note) => `${note.id}:${note.title}:${note.todo_completed ?? 0}`)
-      .sort();
-
-    if (taskSignatures.length > 0) {
-      signatures.push(`${buildTagGroupId(tags)}:${tags[0].title}#${taskSignatures.join("|")}`);
-    }
-  }
-
-  return signatures.join("~");
-}
 
 export function buildDayIdentifier(
   dateId: string,
@@ -1003,10 +970,77 @@ export async function getExistingCalendarNoteMarkers(
   };
 }
 
+function setsIntersect(
+  first: ReadonlySet<string>,
+  second: ReadonlySet<string>,
+): boolean {
+  const [smaller, larger] = first.size <= second.size ? [first, second] : [second, first];
+
+  for (const value of smaller) {
+    if (larger.has(value)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getCachedDayNoteTitles(
+  baseTitle: string,
+  dateId: string,
+  settings: CalendarSettings,
+): ReadonlySet<string> | null {
+  const date = parseDateId(dateId);
+
+  if (resolveCalendarNoteDateId(baseTitle, date.year, date.month, settings) !== dateId) {
+    return null;
+  }
+
+  const cached = markersByMonth.get(buildMonthMarkersKey(date.year, date.month, settings));
+
+  if (!cached) {
+    return null;
+  }
+
+  const titles = new Set<string>();
+
+  for (const note of cached.notesByDate.get(dateId) ?? []) {
+    titles.add(note.title);
+  }
+
+  return titles;
+}
+
+function makeUniqueTitleFromKnownTitles(
+  baseTitle: string,
+  knownTitles: ReadonlySet<string>,
+): string {
+  if (!knownTitles.has(baseTitle)) {
+    return baseTitle;
+  }
+
+  let index = 2;
+
+  while (true) {
+    const title = `${baseTitle}${TITLE_DUPLICATE_SUFFIX_SEPARATOR}(${index})`;
+
+    if (!knownTitles.has(title)) {
+      return title;
+    }
+
+    index += 1;
+  }
+}
+
 async function makeUniqueNoteTitle(
   baseTitle: string,
   folderIds: ReadonlySet<string>,
+  knownTitles: ReadonlySet<string> | null = null,
 ): Promise<string> {
+  if (knownTitles) {
+    return makeUniqueTitleFromKnownTitles(baseTitle, knownTitles);
+  }
+
   if (!(await findNoteByExactTitleInFolders(folderIds, baseTitle))) {
     return baseTitle;
   }
@@ -1127,7 +1161,11 @@ export async function createCalendarNoteForDate(
   const createdAt = new Date();
   const baseTitle = renderNoteTitle(dateId, effectiveSettings, createdAt);
   const noteFolderIds = await getNotebookNotesTreeIds(effectiveSettings);
-  const title = await makeUniqueNoteTitle(baseTitle, noteFolderIds);
+  const taskFolderIds = await getTasksTreeIds(effectiveSettings);
+  const knownTitles = setsIntersect(noteFolderIds, taskFolderIds)
+    ? null
+    : getCachedDayNoteTitles(baseTitle, dateId, effectiveSettings);
+  const title = await makeUniqueNoteTitle(baseTitle, noteFolderIds, knownTitles);
   const created = await createCalendarNote(dateId, title, effectiveSettings, createdAt);
 
   if (created && openAfterCreate) {
