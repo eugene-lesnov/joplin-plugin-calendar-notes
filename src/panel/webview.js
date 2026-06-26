@@ -1,6 +1,5 @@
 const CREATE_ACTIONS = new Set(["createNote", "createTask"]);
 const PANEL_ROOT_ID = "calendar-notes-root";
-const REFRESH_INTERVAL_MS = 15000;
 const VISIBLE_NOTES_PATCH_FAST_INTERVAL_MS = 750;
 const VISIBLE_NOTES_PATCH_IDLE_INTERVAL_MS = 5000;
 const VISIBLE_NOTES_PATCH_FAST_WINDOW_MS = 15000;
@@ -266,10 +265,7 @@ function applyTaskCompletionPatch(message) {
       continue;
     }
 
-    if (taskItem.dataset.pending === "true") {
-      continue;
-    }
-
+    taskItem.removeAttribute("data-pending");
     taskItem.classList.toggle("completed", message.completed);
     taskItem.dataset.sortTitle = message.title;
     taskItem.dataset.alarmTime = String(message.alarmTime || 0);
@@ -335,7 +331,6 @@ function applyPanelResponse(response, force = false) {
 
   queuedPanelHtml = null;
   applyPanelHtml(response.html);
-  activateFastVisibleNotesPatchWindow();
 }
 
 function applyQueuedPanelHtml() {
@@ -366,10 +361,10 @@ function getVisibleNoteIds() {
 function scheduleVisibleNotesPatch() {
   if (visibleNotesPatchTimer !== null) {
     clearTimeout(visibleNotesPatchTimer);
+    visibleNotesPatchTimer = null;
   }
 
-  if (!isMobilePanel()) {
-    visibleNotesPatchTimer = null;
+  if (!isMobilePanel() || document.hidden) {
     return;
   }
 
@@ -384,7 +379,11 @@ function scheduleVisibleNotesPatch() {
 }
 
 async function patchVisibleNotes() {
-  if (!isMobilePanel() || document.hidden || pendingCreateCount > 0 || visibleNotesPatchInFlight) {
+  if (!isMobilePanel() || document.hidden) {
+    return;
+  }
+
+  if (pendingCreateCount > 0 || visibleNotesPatchInFlight) {
     scheduleVisibleNotesPatch();
     return;
   }
@@ -497,21 +496,9 @@ function isMobilePanel() {
   return document.getElementById(PANEL_ROOT_ID)?.dataset.mobile === "true";
 }
 
-async function refreshPanel() {
-  if (!isMobilePanel() || document.hidden || pendingCreateCount > 0) {
-    return;
-  }
-
-  const startedVersion = panelVersion;
-  const response = await webviewApi.postMessage({ name: "refresh" });
-
-  if (startedVersion === panelVersion) {
-    applyPanelResponse(response);
-  }
-}
-
 webviewApi.onMessage((event) => {
   applyPanelResponse(event?.message ?? event);
+  scheduleVisibleNotesPatch();
 });
 
 document.addEventListener("contextmenu", async (event) => {
@@ -643,6 +630,24 @@ async function handleTaskToggle(target) {
   }
 }
 
+function applyOptimisticDateSelection(target) {
+  const root = document.getElementById(PANEL_ROOT_ID);
+
+  if (!root) {
+    return;
+  }
+
+  const wasSelected = target.classList.contains("selected");
+
+  for (const day of root.querySelectorAll(".day.selected")) {
+    day.classList.remove("selected");
+  }
+
+  if (!wasSelected) {
+    target.classList.add("selected");
+  }
+}
+
 async function handleAction(target) {
   const action = target.dataset.action;
 
@@ -660,6 +665,11 @@ async function handleAction(target) {
   if (action === "toggleTask") {
     await handleTaskToggle(target);
     return;
+  }
+
+  if (action === "selectDate") {
+    applyOptimisticDateSelection(target);
+    panelVersion += 1;
   }
 
   applyPanelResponse(await postActionMessage(target, action));
@@ -772,27 +782,26 @@ document.addEventListener("keydown", async (event) => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    activateFastVisibleNotesPatchWindow();
-    void refreshPanel();
-    if (isMobilePanel()) {
-      void patchVisibleNotes();
-    }
+  if (document.hidden) {
+    return;
+  }
+
+  activateFastVisibleNotesPatchWindow();
+  webviewApi.postMessage({ name: "panelVisible" });
+
+  if (isMobilePanel()) {
+    void patchVisibleNotes();
   }
 });
 
-setInterval(() => {
-  void refreshPanel();
-}, REFRESH_INTERVAL_MS);
+function startWebviewLoops() {
+  activateFastVisibleNotesPatchWindow();
+  webviewApi.postMessage({ name: "panelVisible" });
+  scheduleVisibleNotesPatch();
+}
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => {
-    activateFastVisibleNotesPatchWindow();
-    void refreshPanel();
-    scheduleVisibleNotesPatch();
-  });
+  document.addEventListener("DOMContentLoaded", startWebviewLoops);
 } else {
-  activateFastVisibleNotesPatchWindow();
-  void refreshPanel();
-  scheduleVisibleNotesPatch();
+  startWebviewLoops();
 }

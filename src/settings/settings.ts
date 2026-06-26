@@ -75,24 +75,32 @@ function normalizeTaggedTasksTags(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-export async function getCalendarSettings(): Promise<CalendarSettings> {
-  const [values, dayIdentifierFormat] = await Promise.all([
-    joplin.settings.values([
-      SETTING_NEW_NOTE_TITLE_FORMAT,
-      SETTING_WEEK_START,
-      SETTING_NOTEBOOK_NOTES_PATH,
-      SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
-      SETTING_NOTE_TEMPLATE_PATH,
-      SETTING_TASKS_PATH,
-      SETTING_COMPLETED_TASKS_PATH,
-      SETTING_TASK_TEMPLATE_PATH,
-      SETTING_TAGGED_TASKS_TAGS,
-    ]),
-    resolveDayIdentifierFormat(),
+type CachedCalendarSettings = Omit<CalendarSettings, "dayIdentifierFormat">;
+
+let cachedCalendarSettings: CachedCalendarSettings | null = null;
+
+export function invalidateCalendarSettingsCache(): void {
+  cachedCalendarSettings = null;
+}
+
+async function loadCachedCalendarSettings(): Promise<CachedCalendarSettings> {
+  if (cachedCalendarSettings) {
+    return cachedCalendarSettings;
+  }
+
+  const values = await joplin.settings.values([
+    SETTING_NEW_NOTE_TITLE_FORMAT,
+    SETTING_WEEK_START,
+    SETTING_NOTEBOOK_NOTES_PATH,
+    SETTING_NOTEBOOK_NOTES_PATH_PATTERN,
+    SETTING_NOTE_TEMPLATE_PATH,
+    SETTING_TASKS_PATH,
+    SETTING_COMPLETED_TASKS_PATH,
+    SETTING_TASK_TEMPLATE_PATH,
+    SETTING_TAGGED_TASKS_TAGS,
   ]);
 
-  return {
-    dayIdentifierFormat,
+  cachedCalendarSettings = {
     newNoteTitleFormat: normalizeNewNoteTitleFormat(
       values[SETTING_NEW_NOTE_TITLE_FORMAT],
     ),
@@ -116,6 +124,17 @@ export async function getCalendarSettings(): Promise<CalendarSettings> {
     taskTemplatePath: normalizeTemplatePath(values[SETTING_TASK_TEMPLATE_PATH]),
     taggedTasksTags: normalizeTaggedTasksTags(values[SETTING_TAGGED_TASKS_TAGS]),
   };
+
+  return cachedCalendarSettings;
+}
+
+export async function getCalendarSettings(): Promise<CalendarSettings> {
+  const [cached, dayIdentifierFormat] = await Promise.all([
+    loadCachedCalendarSettings(),
+    resolveDayIdentifierFormat(),
+  ]);
+
+  return { dayIdentifierFormat, ...cached };
 }
 
 export async function registerSettings(): Promise<void> {

@@ -47,6 +47,7 @@ import type {
   RepeatFrequency,
   TaggedTaskGroup,
   TaggedTasksResult,
+  TaskCompletionResult,
   TaskMetadata,
 } from "../core/types";
 
@@ -1197,9 +1198,9 @@ async function createNextRepeatedTask(
   dateId: string,
   metadata: TaskMetadata,
   settings: CalendarSettings,
-): Promise<void> {
+): Promise<boolean> {
   if (!metadata.repeat) {
-    return;
+    return false;
   }
 
   const nextDateId = getNextRepeatDateId(dateId, metadata.repeat, getTodayDateId());
@@ -1214,7 +1215,7 @@ async function createNextRepeatedTask(
   );
 
   if (existing) {
-    return;
+    return false;
   }
 
   const parentId = await getNotebookRootFolderIdForCreate(settings.tasksPath);
@@ -1223,7 +1224,7 @@ async function createNextRepeatedTask(
     await joplin.views.dialogs.showMessageBox(
       strings.createCalendarNoteNoNotebookError,
     );
-    return;
+    return false;
   }
 
   const createdAt = new Date();
@@ -1254,6 +1255,8 @@ async function createNextRepeatedTask(
   const created = await joplin.data.post(["notes"], null, payload) as NoteSummary;
   await copyNoteTags(task.id, created.id);
   await writeNoteTaskMetadata(created.id, metadata);
+
+  return true;
 }
 
 
@@ -1334,26 +1337,28 @@ async function createNextRepeatedTaskIfNeeded(
   task: NoteSummary,
   dateId: string,
   settings: CalendarSettings,
-): Promise<void> {
+): Promise<boolean> {
   const metadata = getTaskMetadata(task);
 
-  if (metadata.repeat) {
-    await createNextRepeatedTask(task, dateId, metadata, settings);
+  if (!metadata.repeat) {
+    return false;
   }
+
+  return createNextRepeatedTask(task, dateId, metadata, settings);
 }
 
-async function withTaskCompletionProcessingLock(
+async function withTaskCompletionProcessingLock<T>(
   noteId: string,
-  operation: () => Promise<void>,
-): Promise<void> {
+  operation: () => Promise<T>,
+): Promise<T | undefined> {
   if (processingTaskCompletionNoteIds.has(noteId)) {
-    return;
+    return undefined;
   }
 
   processingTaskCompletionNoteIds.add(noteId);
 
   try {
-    await operation();
+    return await operation();
   } finally {
     processingTaskCompletionNoteIds.delete(noteId);
   }
@@ -1363,11 +1368,11 @@ async function updateTaskCompletionState(
   noteId: string,
   completed: boolean,
   showError: boolean,
-): Promise<void> {
+): Promise<TaskCompletionResult> {
   const task = await getNoteWithBody(noteId);
 
   if (isDeletedNote(task) || !isTodoNote(task)) {
-    return;
+    return { applied: false, createdRepeatedTask: false };
   }
 
   const wasCompleted = isTodoCompleted(task);
@@ -1375,14 +1380,14 @@ async function updateTaskCompletionState(
   const parentId = await getTaskCompletionFolderId(completed, settings, showError);
 
   if (!parentId) {
-    return;
+    return { applied: false, createdRepeatedTask: false };
   }
 
   const shouldUpdateCompletion = wasCompleted !== completed;
   const shouldMoveTask = task.parent_id !== parentId;
 
   if (!shouldUpdateCompletion && !shouldMoveTask) {
-    return;
+    return { applied: false, createdRepeatedTask: false };
   }
 
   const payload: Record<string, unknown> = {};
@@ -1398,23 +1403,30 @@ async function updateTaskCompletionState(
   await joplin.data.put(["notes", noteId], null, payload);
 
   if (!completed || wasCompleted) {
-    return;
+    return { applied: true, createdRepeatedTask: false };
   }
 
   const dateId = resolveTaskDateId(task, settings);
 
-  if (dateId) {
-    await createNextRepeatedTaskIfNeeded(task, dateId, settings);
+  if (!dateId) {
+    return { applied: true, createdRepeatedTask: false };
   }
+
+  return {
+    applied: true,
+    createdRepeatedTask: await createNextRepeatedTaskIfNeeded(task, dateId, settings),
+  };
 }
 
 export async function setCalendarTaskCompleted(
   noteId: string,
   completed: boolean,
-): Promise<void> {
-  await withTaskCompletionProcessingLock(noteId, () =>
+): Promise<TaskCompletionResult> {
+  const result = await withTaskCompletionProcessingLock(noteId, () =>
     updateTaskCompletionState(noteId, completed, true),
   );
+
+  return result ?? { applied: false, createdRepeatedTask: false };
 }
 
 export async function syncCalendarTaskCompletionLocation(noteId: string): Promise<void> {

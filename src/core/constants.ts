@@ -29,3 +29,5 @@ export const DEFAULT_DAY_IDENTIFIER_FORMAT = "{{dd.mm.YYYY}}";
 export const DEFAULT_NEW_NOTE_TITLE_FORMAT = NEW_NOTE_TITLE_FORMAT_DATE_AND_TIME;
 export const DEFAULT_WEEK_START: WeekStart = "monday";
 export const DEFAULT_NOTEBOOK_PATH_PATTERN = "{{year}}/{{month}}";
+
+export const TAGGED_TASKS_HIDDEN_POLL_MS = 30_000;

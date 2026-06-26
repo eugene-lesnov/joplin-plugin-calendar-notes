@@ -12,6 +12,11 @@ export type TaskMetadata = {
   repeat?: RepeatRule;
 };
 
+export type TaskCompletionResult = {
+  applied: boolean;
+  createdRepeatedTask: boolean;
+};
+
 export type CalendarMessage =
   | { name: "selectDate"; date: string }
   | { name: "openNote"; id: string }
@@ -27,6 +32,7 @@ export type CalendarMessage =
   | { name: "nextMonth" }
   | { name: "today" }
   | { name: "refresh" }
+  | { name: "panelVisible" }
   | { name: "patchVisibleNotes"; ids: string[] };
 
 export type PanelHtmlMessage = {

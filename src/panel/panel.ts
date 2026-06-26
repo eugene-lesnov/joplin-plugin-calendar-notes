@@ -1,6 +1,6 @@
 import joplin from "api";
 
-import { PANEL_ID } from "../core/constants";
+import { PANEL_ID, TAGGED_TASKS_HIDDEN_POLL_MS } from "../core/constants";
 import {
   daysInMonth,
   escapeHtml,
@@ -76,7 +76,6 @@ let fastTaggedTasksPollingUntil = 0;
 const TAGGED_TASKS_FAST_POLL_MS = 750;
 const TAGGED_TASKS_DESKTOP_IDLE_POLL_MS = 2_500;
 const TAGGED_TASKS_MOBILE_IDLE_POLL_MS = 15_000;
-const TAGGED_TASKS_HIDDEN_POLL_MS = 30_000;
 const TAGGED_TASKS_FAST_POLL_WINDOW_MS = 12_000;
 
 export async function setupPanel(
@@ -791,7 +790,7 @@ async function pollTaggedTasks(): Promise<void> {
   let nextPollDelay: number | undefined;
 
   try {
-    if (!(await isPanelVisible())) {
+    if (await isMobilePlatform() && !(await isPanelVisible())) {
       nextPollDelay = TAGGED_TASKS_HIDDEN_POLL_MS;
       return;
     }
@@ -812,6 +811,11 @@ async function pollTaggedTasks(): Promise<void> {
     taggedTasksPollInFlight = false;
     void scheduleTaggedTasksPoll(nextPollDelay);
   }
+}
+
+export async function resumeCalendarPanel(): Promise<void> {
+  await renderCalendar();
+  void scheduleTaggedTasksPoll();
 }
 
 async function runCoalescedRefresh(): Promise<void> {

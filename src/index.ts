@@ -37,6 +37,7 @@ import {
   patchVisibleCalendarNotes,
   refreshVisibleCalendar,
   renderCalendar,
+  resumeCalendarPanel,
   scheduleCalendarRefresh,
   selectCalendarDate,
   shouldRefreshCalendarForNoteChange,
@@ -47,7 +48,11 @@ import {
   toggleTaggedTaskGroup,
   toggleTaggedTasks,
 } from "./panel/panel";
-import { getCalendarSettings, registerSettings } from "./settings/settings";
+import {
+  getCalendarSettings,
+  invalidateCalendarSettingsCache,
+  registerSettings,
+} from "./settings/settings";
 import type {
   CalendarMessage,
   NoteChangeEvent,
@@ -62,6 +67,8 @@ const JOPLIN_LOCALE_SETTING_KEY = "locale";
 
 let previousSelectedNoteIds: string[] = [];
 let taskCompletionQueue = Promise.resolve();
+
+const BACKGROUND_MESSAGE_NAMES = new Set(["refresh", "patchVisibleNotes", "panelVisible"]);
 
 const RENDER_AFFECTING_SETTINGS = [
   SETTING_NEW_NOTE_TITLE_FORMAT,
@@ -87,7 +94,13 @@ async function enqueueTaskCompletion(operation: () => Promise<void>): Promise<vo
 }
 
 async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessage | void> {
-  activateFastTaggedTasksPolling();
+  if (!BACKGROUND_MESSAGE_NAMES.has(message.name)) {
+    activateFastTaggedTasksPolling();
+  }
+
+  if (message.name === "panelVisible") {
+    return resumeCalendarPanel();
+  }
 
   if (message.name === "selectDate") {
     return selectCalendarDate(message.date);
@@ -124,10 +137,17 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
   }
 
   if (message.name === "toggleTask") {
-    await enqueueTaskCompletion(() =>
-      setCalendarTaskCompleted(message.id, !message.completed),
-    );
-    return renderCalendar();
+    let result = { applied: false, createdRepeatedTask: false };
+
+    await enqueueTaskCompletion(async () => {
+      result = await setCalendarTaskCompleted(message.id, !message.completed);
+    });
+
+    if (!result.applied || result.createdRepeatedTask) {
+      return renderCalendar();
+    }
+
+    return;
   }
 
   if (message.name === "setTaskRepeat") {
@@ -272,6 +292,7 @@ joplin.plugins.register({
       const keys = event.keys ?? [];
 
       if (keys.some((key) => RENDER_AFFECTING_SETTINGS.includes(key))) {
+        invalidateCalendarSettingsCache();
         clearCalendarNoteCaches();
         await renderCalendar();
       }
@@ -281,6 +302,7 @@ joplin.plugins.register({
     await joplin.workspace.onNoteSelectionChange(handleNoteSelectionChange);
     await joplin.workspace.onSyncComplete(async () => {
       activateFastTaggedTasksPolling();
+      invalidateCalendarSettingsCache();
       clearCalendarNoteCaches();
       await scheduleCalendarRefresh();
     });
