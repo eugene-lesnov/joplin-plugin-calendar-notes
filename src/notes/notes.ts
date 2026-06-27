@@ -9,6 +9,7 @@ import {
   formatDateByPattern,
   formatDateExpression,
   formatDateId,
+  formatTimeByPattern,
   getDateTokenValues,
   getTodayDateId,
   isoWeekNumber,
@@ -101,6 +102,10 @@ export function clearCalendarNoteCaches(): void {
   treeIdsByPath.clear();
   templateSourceCache.clear();
   taskMetadataCache.clear();
+  markersByMonth.clear();
+}
+
+export function clearCalendarMonthMarkers(): void {
   markersByMonth.clear();
 }
 
@@ -562,7 +567,7 @@ export function renderNoteTemplate(
   const replacements: Record<string, string> = {
     title,
     noteTitle: title,
-    time: formatTime(createdAt),
+    time: formatTimeByPattern(createdAt, settings.timeFormat),
     ...getDateReplacements(dateId, dayIdentifier),
   };
 
@@ -571,10 +576,6 @@ export function renderNoteTemplate(
   });
 
   return body;
-}
-
-function formatTime(date: Date): string {
-  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
 function renderNoteTitle(
@@ -596,7 +597,7 @@ function renderNoteTitle(
     title: dayIdentifier,
     noteTitle: dayIdentifier,
     dayIdentifier,
-    time: formatTime(createdAt),
+    time: formatTimeByPattern(createdAt, settings.timeFormat),
     ...getDateReplacements(dateId, dayIdentifier),
   };
 

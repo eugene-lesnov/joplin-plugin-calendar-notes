@@ -7,6 +7,8 @@ import {
   DEFAULT_WEEK_START,
   JOPLIN_DATE_FORMAT_SETTING_KEY,
   JOPLIN_DEFAULT_DATE_FORMAT,
+  JOPLIN_DEFAULT_TIME_FORMAT,
+  JOPLIN_TIME_FORMAT_SETTING_KEY,
   NEW_NOTE_TITLE_FORMAT_DATE_AND_TIME,
   NEW_NOTE_TITLE_FORMAT_DATE_ONLY,
   NEW_NOTE_TITLE_FORMATS,
@@ -25,24 +27,89 @@ import { momentFormatToPattern, weekdayLongName } from "../core/dateUtils";
 import strings from "../core/localization";
 import type { CalendarSettings, WeekStart } from "../core/types";
 
-const DATE_FORMAT_FALLBACK_WARNING =
-  "Failed to read Joplin date format. Using default date format.";
+const GLOBAL_FORMAT_FALLBACK_WARNING =
+  "Failed to read Joplin date/time formats. Using default formats.";
+const TIME_FORMAT_ALPHA_TOKEN_PATTERN = /[A-Za-z]+/g;
+const TIME_FORMAT_BRACKET_LITERAL_PATTERN = /\[[^\[\]]*\]/g;
+const SUPPORTED_TIME_TOKENS = new Set(["HH", "H", "hh", "h", "mm", "m", "A", "a"]);
+const REQUIRED_TIME_TOKENS = new Set(["HH", "H", "hh", "h"]);
 
-async function resolveDayIdentifierFormat(): Promise<string> {
-  try {
-    const [joplinDateFormat] = await joplin.settings.globalValues([
-      JOPLIN_DATE_FORMAT_SETTING_KEY,
-    ]);
-    const format = String(joplinDateFormat ?? "").trim();
+type GlobalFormats = {
+  dayIdentifierFormat: string;
+  timeFormat: string;
+};
 
-    if (format) {
-      return momentFormatToPattern(format);
-    }
-  } catch (error) {
-    console.warn(DATE_FORMAT_FALLBACK_WARNING, error);
+function normalizeGlobalDateFormat(value: unknown): string {
+  const format = String(value ?? "").trim();
+
+  return momentFormatToPattern(format || JOPLIN_DEFAULT_DATE_FORMAT);
+}
+
+function stripTimeFormatLiterals(format: string): string | null {
+  let stripped = "";
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  const literalPattern = new RegExp(TIME_FORMAT_BRACKET_LITERAL_PATTERN.source, "g");
+
+  while ((match = literalPattern.exec(format)) !== null) {
+    stripped += format.slice(lastIndex, match.index);
+    lastIndex = match.index + match[0].length;
   }
 
-  return momentFormatToPattern(JOPLIN_DEFAULT_DATE_FORMAT);
+  stripped += format.slice(lastIndex);
+
+  if (stripped.includes("[") || stripped.includes("]")) {
+    return null;
+  }
+
+  return stripped;
+}
+
+function normalizeGlobalTimeFormat(value: unknown): string {
+  const format = String(value ?? "").trim();
+
+  if (!format) {
+    return momentFormatToPattern(JOPLIN_DEFAULT_TIME_FORMAT);
+  }
+
+  const tokenSource = stripTimeFormatLiterals(format);
+
+  if (tokenSource === null) {
+    return momentFormatToPattern(JOPLIN_DEFAULT_TIME_FORMAT);
+  }
+
+  const tokens = tokenSource.match(TIME_FORMAT_ALPHA_TOKEN_PATTERN) ?? [];
+
+  if (
+    tokens.length === 0
+    || tokens.some((token) => !SUPPORTED_TIME_TOKENS.has(token))
+    || !tokens.some((token) => REQUIRED_TIME_TOKENS.has(token))
+  ) {
+    return momentFormatToPattern(JOPLIN_DEFAULT_TIME_FORMAT);
+  }
+
+  return momentFormatToPattern(format);
+}
+
+async function resolveGlobalFormats(): Promise<GlobalFormats> {
+  try {
+    const [joplinDateFormat, joplinTimeFormat] = await joplin.settings.globalValues([
+      JOPLIN_DATE_FORMAT_SETTING_KEY,
+      JOPLIN_TIME_FORMAT_SETTING_KEY,
+    ]);
+
+    cachedGlobalFormats = {
+      dayIdentifierFormat: normalizeGlobalDateFormat(joplinDateFormat),
+      timeFormat: normalizeGlobalTimeFormat(joplinTimeFormat),
+    };
+
+    return cachedGlobalFormats;
+  } catch (error) {
+    console.warn(GLOBAL_FORMAT_FALLBACK_WARNING, error);
+  }
+
+  cachedGlobalFormats = fallbackGlobalFormats;
+  return fallbackGlobalFormats;
 }
 
 function normalizeNewNoteTitleFormat(value: unknown): string {
@@ -75,12 +142,35 @@ function normalizeTaggedTasksTags(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-type CachedCalendarSettings = Omit<CalendarSettings, "dayIdentifierFormat">;
+type CachedCalendarSettings = Omit<CalendarSettings, "dayIdentifierFormat" | "timeFormat">;
+
+const fallbackGlobalFormats: GlobalFormats = {
+  dayIdentifierFormat: momentFormatToPattern(JOPLIN_DEFAULT_DATE_FORMAT),
+  timeFormat: momentFormatToPattern(JOPLIN_DEFAULT_TIME_FORMAT),
+};
+
+const fallbackCalendarSettings: CalendarSettings = {
+  ...fallbackGlobalFormats,
+  newNoteTitleFormat: DEFAULT_NEW_NOTE_TITLE_FORMAT,
+  weekStart: DEFAULT_WEEK_START,
+  notebookNotesPath: strings.defaultNotebookNotesPath,
+  notebookNotesPathPattern: DEFAULT_NOTEBOOK_PATH_PATTERN,
+  noteTemplatePath: "",
+  tasksPath: strings.defaultTasksPath,
+  completedTasksPath: strings.defaultCompletedTasksPath,
+  taskTemplatePath: "",
+  taggedTasksTags: "",
+};
 
 let cachedCalendarSettings: CachedCalendarSettings | null = null;
+let cachedGlobalFormats: GlobalFormats | null = null;
+let lastCalendarSettings: CalendarSettings | null = null;
 
 export function invalidateCalendarSettingsCache(): void {
   cachedCalendarSettings = null;
+  lastCalendarSettings = cachedGlobalFormats
+    ? { ...fallbackCalendarSettings, ...cachedGlobalFormats }
+    : null;
 }
 
 async function loadCachedCalendarSettings(): Promise<CachedCalendarSettings> {
@@ -129,12 +219,17 @@ async function loadCachedCalendarSettings(): Promise<CachedCalendarSettings> {
 }
 
 export async function getCalendarSettings(): Promise<CalendarSettings> {
-  const [cached, dayIdentifierFormat] = await Promise.all([
+  const [cached, globalFormats] = await Promise.all([
     loadCachedCalendarSettings(),
-    resolveDayIdentifierFormat(),
+    resolveGlobalFormats(),
   ]);
 
-  return { dayIdentifierFormat, ...cached };
+  lastCalendarSettings = { ...globalFormats, ...cached };
+  return lastCalendarSettings;
+}
+
+export function getCachedCalendarSettings(): CalendarSettings {
+  return lastCalendarSettings ?? fallbackCalendarSettings;
 }
 
 export async function registerSettings(): Promise<void> {

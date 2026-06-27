@@ -15,7 +15,9 @@ export const SETTING_TASK_TEMPLATE_PATH = "taskTemplatePath";
 export const SETTING_TAGGED_TASKS_TAGS = "taggedTasksTags";
 
 export const JOPLIN_DATE_FORMAT_SETTING_KEY = "dateFormat";
+export const JOPLIN_TIME_FORMAT_SETTING_KEY = "timeFormat";
 export const JOPLIN_DEFAULT_DATE_FORMAT = "DD/MM/YYYY";
+export const JOPLIN_DEFAULT_TIME_FORMAT = "HH:mm";
 
 export const NEW_NOTE_TITLE_FORMAT_DATE_AND_TIME = "{{dayIdentifier}} - {{time}}";
 export const NEW_NOTE_TITLE_FORMAT_DATE_ONLY = "{{dayIdentifier}}";

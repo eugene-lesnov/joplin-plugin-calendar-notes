@@ -1,10 +1,14 @@
 import joplin from "api";
 
-import { PANEL_ID, TAGGED_TASKS_HIDDEN_POLL_MS } from "../core/constants";
+import {
+  PANEL_ID,
+  TAGGED_TASKS_HIDDEN_POLL_MS,
+} from "../core/constants";
 import {
   daysInMonth,
   escapeHtml,
   formatDateId,
+  formatTimeByPattern,
   getTodayDateId,
   pad2,
   parseDateId,
@@ -20,6 +24,8 @@ import { isMobilePlatform } from "../core/platform";
 import {
   NOTE_LIST_FIELDS,
   buildDayIdentifier,
+  clearCalendarMonthMarkers,
+  clearCalendarNoteCaches,
   compareCalendarNotesByTitle,
   getExistingCalendarNoteMarkers,
   getTaggedTasks,
@@ -33,7 +39,10 @@ import {
   resolveCalendarNoteDateId,
   sortTasks,
 } from "../notes/notes";
-import { getCalendarSettings } from "../settings/settings";
+import {
+  getCachedCalendarSettings,
+  getCalendarSettings,
+} from "../settings/settings";
 import type {
   CalendarMessage,
   CalendarSettings,
@@ -69,6 +78,7 @@ let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 let refreshInFlight = false;
 let refreshPending = false;
 let renderSeq = 0;
+let mobileNavigationSeq = 0;
 let panelShellReady = false;
 let taggedTasksPollTimer: ReturnType<typeof setTimeout> | null = null;
 let taggedTasksPollInFlight = false;
@@ -77,6 +87,14 @@ const TAGGED_TASKS_FAST_POLL_MS = 750;
 const TAGGED_TASKS_DESKTOP_IDLE_POLL_MS = 2_500;
 const TAGGED_TASKS_MOBILE_IDLE_POLL_MS = 15_000;
 const TAGGED_TASKS_FAST_POLL_WINDOW_MS = 12_000;
+const PENDING_CREATED_NOTE_TTL_MS = 20_000;
+
+type PendingCreatedCalendarNote = {
+  dateId: string;
+  createdAt: number;
+};
+
+const pendingCreatedCalendarNotes = new Map<string, PendingCreatedCalendarNote>();
 
 export async function setupPanel(
   onMessage: (message: CalendarMessage) => Promise<PanelMessage | void>,
@@ -242,10 +260,10 @@ function isSameLocalDay(first: Date, second: Date): boolean {
     && first.getDate() === second.getDate();
 }
 
-function formatTaskAlarm(alarmTime: number, taskDateId: string): string {
+function formatTaskAlarm(alarmTime: number, taskDateId: string, settings: CalendarSettings): string {
   const alarmDate = new Date(alarmTime);
   const taskDate = new Date(`${taskDateId}T00:00:00`);
-  const time = `${pad2(alarmDate.getHours())}:${pad2(alarmDate.getMinutes())}`;
+  const time = formatTimeByPattern(alarmDate, settings.timeFormat);
 
   if (isSameLocalDay(alarmDate, taskDate)) {
     return time;
@@ -309,7 +327,12 @@ function renderTaskRepeatHtml(task: NoteSummary, completed: boolean): string {
   ><span class="task-repeat-icon">↻</span><span class="task-repeat-text">${escapeHtml(label)}</span></span>`;
 }
 
-function renderTaskAlarmHtml(task: NoteSummary, completed: boolean, dateId: string): string {
+function renderTaskAlarmHtml(
+  task: NoteSummary,
+  completed: boolean,
+  dateId: string,
+  settings: CalendarSettings,
+): string {
   if (!task.todo_due || task.todo_due <= 0) {
     return "";
   }
@@ -318,7 +341,7 @@ function renderTaskAlarmHtml(task: NoteSummary, completed: boolean, dateId: stri
   const classes = ["task-alarm", overdue ? "overdue" : ""]
     .filter(Boolean)
     .join(" ");
-  const label = formatTaskAlarm(task.todo_due, dateId);
+  const label = formatTaskAlarm(task.todo_due, dateId, settings);
   const title = formatLocalizedString(strings.taskAlarmTitleLabel, {
     alarm: label,
     date: formatTaskDateLabel(dateId),
@@ -331,12 +354,13 @@ function renderTaskItemHtml(
   task: NoteSummary,
   title: string,
   dateId: string,
+  settings: CalendarSettings,
   datePrefix = "",
   showRepeat = true,
 ): string {
   const completed = isTaskCompleted(task);
   const repeat = showRepeat ? task.metadata?.repeat : undefined;
-  const alarmHtml = renderTaskAlarmHtml(task, completed, dateId);
+  const alarmHtml = renderTaskAlarmHtml(task, completed, dateId, settings);
   const repeatHtml = showRepeat ? renderTaskRepeatHtml(task, completed) : "";
   const repeatMetaHtml = repeat
     ? `<span class="task-repeat-mobile-text">↻ ${escapeHtml(getRepeatLabel(repeat.frequency))}</span>`
@@ -382,6 +406,7 @@ function renderTasksSectionHtml(
             task,
             stripDayIdentifierFromTitle(task.title, dateId, settings),
             dateId,
+            settings,
           ),
         )
         .join("")}</ul>`;
@@ -480,10 +505,126 @@ function addVisibleCalendarItem(
   target: Map<string, NoteSummary[]>,
   compare: (first: NoteSummary, second: NoteSummary) => number,
 ): void {
-  const items = [...(target.get(dateId) ?? []), note].sort(compare);
+  const items = [
+    ...(target.get(dateId) ?? []).filter((item) => item.id !== note.id),
+    note,
+  ].sort(compare);
 
   target.set(dateId, items);
   visibleCalendarNoteDatesById.set(note.id, dateId);
+}
+
+function prunePendingCreatedCalendarNotes(now = Date.now()): void {
+  for (const [noteId, pending] of pendingCreatedCalendarNotes) {
+    if (now - pending.createdAt > PENDING_CREATED_NOTE_TTL_MS) {
+      pendingCreatedCalendarNotes.delete(noteId);
+    }
+  }
+}
+
+async function applyPendingCreatedCalendarNotes(
+  markers: {
+    datesByNoteId: Map<string, string>;
+    noteCountsByDate: Map<string, number>;
+    notesByDate: Map<string, NoteSummary[]>;
+  },
+  year: number,
+  month: number,
+  settings: CalendarSettings,
+): Promise<void> {
+  prunePendingCreatedCalendarNotes();
+
+  if (pendingCreatedCalendarNotes.size === 0) {
+    return;
+  }
+
+  for (const [noteId, pending] of pendingCreatedCalendarNotes) {
+    if (markers.datesByNoteId.has(noteId)) {
+      pendingCreatedCalendarNotes.delete(noteId);
+      continue;
+    }
+
+    const date = parseDateId(pending.dateId);
+
+    if (date.year !== year || date.month !== month) {
+      continue;
+    }
+
+    const note = await getActiveNote(noteId);
+
+    if (pendingCreatedCalendarNotes.get(noteId) !== pending) {
+      continue;
+    }
+
+    if (!note) {
+      pendingCreatedCalendarNotes.delete(noteId);
+      continue;
+    }
+
+    const noteDateId = resolveAnyCalendarNoteDateId(note.title, settings);
+
+    if (noteDateId !== pending.dateId || isDeletedNote(note) || note.is_todo === 1) {
+      pendingCreatedCalendarNotes.delete(noteId);
+      continue;
+    }
+
+    const notes = markers.notesByDate.get(pending.dateId) ?? [];
+
+    if (notes.some((note) => note.id === noteId)) {
+      pendingCreatedCalendarNotes.delete(noteId);
+      continue;
+    }
+
+    const nextNotes = [...notes, note].sort(compareCalendarNotesByTitle);
+    markers.notesByDate.set(pending.dateId, nextNotes);
+    markers.noteCountsByDate.set(pending.dateId, nextNotes.length);
+    markers.datesByNoteId.set(noteId, pending.dateId);
+  }
+}
+
+export function clearPendingCreatedCalendarNotes(): void {
+  pendingCreatedCalendarNotes.clear();
+}
+
+export function clearVisibleCalendarCaches(noteId?: string): void {
+  if (noteId) {
+    const dateId = visibleCalendarNoteDatesById.get(noteId);
+
+    if (dateId) {
+      visibleCalendarNoteDatesById.delete(noteId);
+      visibleNotesByDate.set(
+        dateId,
+        (visibleNotesByDate.get(dateId) ?? []).filter((note) => note.id !== noteId),
+      );
+      visibleTasksByDate.set(
+        dateId,
+        (visibleTasksByDate.get(dateId) ?? []).filter((task) => task.id !== noteId),
+      );
+    }
+
+    visibleOverdueTasks = visibleOverdueTasks.filter((item) => item.task.id !== noteId);
+    visibleTaggedTasks = visibleTaggedTasks
+      .map((group) => ({
+        ...group,
+        tasks: group.tasks.filter((task) => task.id !== noteId),
+      }))
+      .filter((group) => group.tasks.length > 0);
+    pruneExpandedTaggedTaskGroups(visibleTaggedTasks);
+    lastTaggedTasksSignature = buildTaggedTasksSignature(visibleTaggedTasks);
+    pendingCreatedCalendarNotes.delete(noteId);
+    return;
+  }
+
+  visibleCalendarNoteDatesById = new Map();
+  visibleNotesByDate = new Map();
+  visibleTasksByDate = new Map();
+  visibleOverdueTasks = [];
+  visibleTaggedTasks = [];
+  lastTaggedTasksSignature = null;
+}
+
+export function removePendingCreatedCalendarNote(noteId: string): void {
+  pendingCreatedCalendarNotes.delete(noteId);
 }
 
 function renderOverdueTasksSectionHtml(
@@ -513,6 +654,7 @@ function renderOverdueTasksSectionHtml(
                   task,
                   stripDayIdentifierFromTitle(task.title, dateId, settings),
                   dateId,
+                  settings,
                   formatTaskDateLabel(dateId),
                 ),
               )
@@ -525,6 +667,7 @@ function renderOverdueTasksSectionHtml(
 
 function renderTaggedTasksSectionHtml(
   groups: readonly TaggedTaskGroup[],
+  settings: CalendarSettings,
 ): string {
   if (groups.length === 0) {
     return "";
@@ -537,7 +680,7 @@ function renderTaggedTasksSectionHtml(
       const groupToggleClass = isVisible ? "expanded" : "collapsed";
       const items = isVisible
         ? group.tasks.map((task) =>
-          renderTaskItemHtml(task, task.title, "", "", false),
+          renderTaskItemHtml(task, task.title, "", settings, "", false),
         ).join("")
         : "";
 
@@ -673,7 +816,7 @@ function renderCalendarHtml(
 
 			${renderOverdueTasksSectionHtml(overdueTasks, settings)}
 
-			${renderTaggedTasksSectionHtml(taggedTasks)}
+			${renderTaggedTasksSectionHtml(taggedTasks, settings)}
 
 			${
               selectedDateId
@@ -687,6 +830,68 @@ function renderCalendarHtml(
             }
 		</div>
 	`;
+}
+
+type NavigationRenderToken = {
+  renderSeq: number;
+  mobileSeq: number;
+};
+
+async function renderCalendarShell(token: NavigationRenderToken): Promise<PanelHtmlMessage | void> {
+  const html = renderCalendarHtml(
+    currentYear,
+    currentMonth,
+    new Map(),
+    new Map(),
+    new Map(),
+    [],
+    [],
+    getCachedCalendarSettings(),
+  );
+
+  if (token.mobileSeq !== mobileNavigationSeq) {
+    return;
+  }
+
+  return updatePanelHtml(html);
+}
+
+function scheduleMobileNavigationRender(token: NavigationRenderToken): void {
+  setTimeout(() => {
+    void (async () => {
+      try {
+        if (token.mobileSeq === mobileNavigationSeq && token.renderSeq === renderSeq) {
+          await renderCalendar();
+        }
+      } catch (error) {
+        console.warn("Failed to render calendar after mobile navigation.", error);
+      }
+    })();
+  }, 0);
+}
+
+async function renderAfterNavigation(token: NavigationRenderToken): Promise<PanelHtmlMessage | void> {
+  if (!(await isMobilePlatform())) {
+    return renderCalendar();
+  }
+
+  const shellMessage = await renderCalendarShell(token);
+
+  if (token.mobileSeq === mobileNavigationSeq) {
+    scheduleMobileNavigationRender(token);
+  }
+
+  return shellMessage;
+}
+
+function invalidateNavigationRender(): NavigationRenderToken {
+  renderSeq += 1;
+  mobileNavigationSeq += 1;
+
+  return {
+    renderSeq,
+    mobileSeq: mobileNavigationSeq,
+  };
 }
 
 export async function renderCalendar(
@@ -703,8 +908,23 @@ export async function renderCalendar(
     return;
   }
 
-  visibleCalendarNoteDatesById = new Map(existingMarkers.datesByNoteId);
-  visibleNotesByDate = existingMarkers.notesByDate;
+  const datesByNoteId = new Map(existingMarkers.datesByNoteId);
+  const noteCountsByDate = new Map(existingMarkers.noteCountsByDate);
+  const notesByDate = new Map(existingMarkers.notesByDate);
+
+  await applyPendingCreatedCalendarNotes(
+    { datesByNoteId, noteCountsByDate, notesByDate },
+    currentYear,
+    currentMonth,
+    settings,
+  );
+
+  if (mySeq !== renderSeq) {
+    return;
+  }
+
+  visibleCalendarNoteDatesById = datesByNoteId;
+  visibleNotesByDate = notesByDate;
   visibleTasksByDate = existingMarkers.tasksByDate;
   visibleOverdueTasks = existingMarkers.overdueTasks;
   visibleTaggedTasks = taggedTasks.groups;
@@ -714,8 +934,8 @@ export async function renderCalendar(
   const html = renderCalendarHtml(
     currentYear,
     currentMonth,
-    existingMarkers.noteCountsByDate,
-    existingMarkers.notesByDate,
+    noteCountsByDate,
+    notesByDate,
     existingMarkers.tasksByDate,
     existingMarkers.overdueTasks,
     visibleTaggedTasks,
@@ -817,6 +1037,8 @@ async function pollTaggedTasks(): Promise<void> {
 }
 
 export async function resumeCalendarPanel(): Promise<void> {
+  clearCalendarNoteCaches();
+  clearVisibleCalendarCaches();
   await renderCalendar();
   void scheduleTaggedTasksPoll();
 }
@@ -831,6 +1053,8 @@ async function runCoalescedRefresh(): Promise<void> {
   try {
     do {
       refreshPending = false;
+      clearCalendarMonthMarkers();
+      clearVisibleCalendarCaches();
       await renderCalendar();
     } while (refreshPending);
   } finally {
@@ -1154,6 +1378,12 @@ export async function addCreatedCalendarNote(
     return renderVisiblePanel();
   }
 
+  const now = Date.now();
+  prunePendingCreatedCalendarNotes(now);
+  pendingCreatedCalendarNotes.set(note.id, {
+    dateId,
+    createdAt: now,
+  });
   addVisibleCalendarItem(dateId, note, visibleNotesByDate, compareCalendarNotesByTitle);
   return renderVisiblePanel();
 }
@@ -1214,7 +1444,7 @@ export async function goToToday(): Promise<PanelHtmlMessage | void> {
   currentMonth = today.getMonth();
   selectedDateId = getTodayDateId();
 
-  return renderCalendar();
+  return renderAfterNavigation(invalidateNavigationRender());
 }
 
 export async function goToPrevMonth(): Promise<PanelHtmlMessage | void> {
@@ -1227,7 +1457,7 @@ export async function goToPrevMonth(): Promise<PanelHtmlMessage | void> {
 
   selectedDateId = null;
 
-  return renderCalendar();
+  return renderAfterNavigation(invalidateNavigationRender());
 }
 
 export async function goToNextMonth(): Promise<PanelHtmlMessage | void> {
@@ -1240,7 +1470,7 @@ export async function goToNextMonth(): Promise<PanelHtmlMessage | void> {
 
   selectedDateId = null;
 
-  return renderCalendar();
+  return renderAfterNavigation(invalidateNavigationRender());
 }
 
 export async function selectCalendarDate(dateId: string): Promise<PanelHtmlMessage> {

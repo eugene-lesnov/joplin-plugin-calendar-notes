@@ -120,6 +120,7 @@ export type TaggedTasksResult = {
 
 export type CalendarSettings = {
   dayIdentifierFormat: string;
+  timeFormat: string;
   newNoteTitleFormat: string;
   weekStart: WeekStart;
   notebookNotesPath: string;

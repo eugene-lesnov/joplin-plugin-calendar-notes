@@ -225,11 +225,10 @@ export function getDateTokenValues(date: CalendarDate): Array<[string, string]> 
     ];
 }
 
-export function formatDateExpression(
-    date: CalendarDate,
+function formatExpression(
+    tokenValues: Array<[string, string]>,
     expression: string,
 ): string {
-    const tokenValues = getDateTokenValues(date);
     let result = "";
     let index = 0;
 
@@ -252,11 +251,77 @@ export function formatDateExpression(
     return result;
 }
 
+export function formatDateExpression(
+    date: CalendarDate,
+    expression: string,
+): string {
+    return formatExpression(getDateTokenValues(date), expression);
+}
+
+export function getTimeTokenValues(date: Date): Array<[string, string]> {
+    const hours24 = date.getHours();
+    const hours12 = hours24 % 12 || 12;
+    const minutes = date.getMinutes();
+    const meridiem = hours24 < 12 ? "AM" : "PM";
+
+    return [
+        ["HH", pad2(hours24)],
+        ["H", String(hours24)],
+        ["hh", pad2(hours12)],
+        ["h", String(hours12)],
+        ["mm", pad2(minutes)],
+        ["m", String(minutes)],
+        ["A", meridiem],
+        ["a", meridiem.toLowerCase()],
+    ];
+}
+
+export function formatTimeExpression(
+    date: Date,
+    expression: string,
+): string {
+    const tokenValues = getTimeTokenValues(date);
+    let result = "";
+    let segment = "";
+    let index = 0;
+
+    while (index < expression.length) {
+        if (expression[index] === "[") {
+            const closingIndex = expression.indexOf("]", index + 1);
+
+            if (closingIndex < 0) {
+                segment += expression[index];
+                index += 1;
+                continue;
+            }
+
+            result += formatExpression(tokenValues, segment);
+            result += expression.slice(index + 1, closingIndex);
+            segment = "";
+            index = closingIndex + 1;
+            continue;
+        }
+
+        segment += expression[index];
+        index += 1;
+    }
+
+    return result + formatExpression(tokenValues, segment);
+}
+
 function renderDatePattern(date: CalendarDate, pattern: string): string {
     return pattern.replace(
         DATE_FORMAT_EXPRESSION_PATTERN,
         (_match, expression: string) =>
             formatDateExpression(date, expression.trim()),
+    );
+}
+
+function renderTimePattern(date: Date, pattern: string): string {
+    return pattern.replace(
+        DATE_FORMAT_EXPRESSION_PATTERN,
+        (_match, expression: string) =>
+            formatTimeExpression(date, expression.trim()),
     );
 }
 
@@ -273,6 +338,10 @@ export function formatDateByPattern(
     }
 
     return renderDatePattern(date, DEFAULT_DAY_IDENTIFIER_FORMAT).trim();
+}
+
+export function formatTimeByPattern(date: Date, pattern: string): string {
+    return renderTimePattern(date, pattern).trim();
 }
 
 export function startOfLocalDayMs(dateId: string): number {

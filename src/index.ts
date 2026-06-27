@@ -15,10 +15,12 @@ import {
 import strings, { getLocales, setLocale } from "./core/localization";
 import { isMobilePlatform } from "./core/platform";
 import {
+  NOTE_LIST_FIELDS,
   clearCalendarNoteCaches,
   clearTaskRepeat,
   createCalendarNoteForDate,
   createCalendarTaskForDate,
+  isDeletedNote,
   setCalendarTaskCompleted,
   setTaskRepeat,
   syncCalendarTaskCompletionLocation,
@@ -27,6 +29,8 @@ import {
   activateFastTaggedTasksPolling,
   addCreatedCalendarNote,
   addCreatedCalendarTask,
+  clearVisibleCalendarCaches,
+  clearPendingCreatedCalendarNotes,
   goToNextMonth,
   goToPrevMonth,
   goToToday,
@@ -35,6 +39,7 @@ import {
   patchVisibleCalendarNoteChange,
   patchVisibleCalendarNotes,
   refreshVisibleCalendar,
+  removePendingCreatedCalendarNote,
   renderCalendar,
   resumeCalendarPanel,
   scheduleCalendarRefresh,
@@ -56,6 +61,7 @@ import type {
   CalendarMessage,
   NoteChangeEvent,
   NoteSelectionChangeEvent,
+  NoteSummary,
   PanelMessage,
 } from "./core/types";
 
@@ -92,6 +98,26 @@ async function enqueueTaskCompletion(operation: () => Promise<void>): Promise<vo
   return nextOperation;
 }
 
+async function getOpenableNote(noteId: string): Promise<NoteSummary | null> {
+  try {
+    const note = (await joplin.data.get(["notes", noteId], {
+      fields: NOTE_LIST_FIELDS,
+    })) as NoteSummary;
+
+    return isDeletedNote(note) ? null : note;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAfterStaleNote(noteId: string): Promise<PanelMessage | void> {
+  clearCalendarNoteCaches();
+  clearVisibleCalendarCaches(noteId);
+  clearPendingCreatedCalendarNotes();
+
+  return renderCalendar();
+}
+
 async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessage | void> {
   if (!BACKGROUND_MESSAGE_NAMES.has(message.name)) {
     activateFastTaggedTasksPolling();
@@ -106,7 +132,18 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
   }
 
   if (message.name === "openNote") {
-    await joplin.commands.execute("openNote", message.id);
+    const note = await getOpenableNote(message.id);
+
+    if (!note) {
+      return refreshAfterStaleNote(message.id);
+    }
+
+    try {
+      await joplin.commands.execute("openNote", message.id);
+    } catch (error) {
+      console.warn("Failed to open calendar note.", error);
+      return refreshAfterStaleNote(message.id);
+    }
 
     if (await isMobilePlatform()) {
       await joplin.commands.execute("dismissPluginPanels");
@@ -213,6 +250,10 @@ async function handleNoteChange(event: NoteChangeEvent): Promise<void> {
 
   await invalidateCalendarMonthCacheForNoteChange(event.id, event.event, settings);
 
+  if (event.event === 3) {
+    removePendingCreatedCalendarNote(event.id);
+  }
+
   const isMobile = await isMobilePlatform();
 
   if (isMobile && await patchVisibleCalendarNoteChange(event.id, event.event, settings)) {
@@ -299,6 +340,7 @@ joplin.plugins.register({
       if (keys.some((key) => RENDER_AFFECTING_SETTINGS.includes(key))) {
         invalidateCalendarSettingsCache();
         clearCalendarNoteCaches();
+        clearPendingCreatedCalendarNotes();
         await renderCalendar();
       }
     });
@@ -309,6 +351,8 @@ joplin.plugins.register({
       activateFastTaggedTasksPolling();
       invalidateCalendarSettingsCache();
       clearCalendarNoteCaches();
+      clearVisibleCalendarCaches();
+      clearPendingCreatedCalendarNotes();
       await scheduleCalendarRefresh();
     });
 
