@@ -88,10 +88,6 @@ const RENDER_AFFECTING_SETTINGS = [
   SETTING_TAGGED_TASKS_TAGS,
 ];
 
-async function shouldOpenCreatedItem(): Promise<boolean> {
-  return !(await isMobilePlatform());
-}
-
 async function enqueueTaskCompletion(operation: () => Promise<void>): Promise<void> {
   const nextOperation = taskCompletionQueue.then(operation, operation);
   taskCompletionQueue = nextOperation.catch(() => undefined);
@@ -154,20 +150,22 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
   }
 
   if (message.name === "createNote") {
+    const isMobile = await isMobilePlatform();
     const note = await createCalendarNoteForDate(
       message.date,
       undefined,
-      await shouldOpenCreatedItem(),
+      !isMobile,
     );
 
     return addCreatedCalendarNote(message.date, note);
   }
 
   if (message.name === "createTask") {
+    const isMobile = await isMobilePlatform();
     const task = await createCalendarTaskForDate(
       message.date,
       undefined,
-      await shouldOpenCreatedItem(),
+      !isMobile,
     );
 
     return addCreatedCalendarTask(message.date, task);

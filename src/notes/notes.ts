@@ -90,10 +90,12 @@ type MonthNoteMarkers = {
   datesByNoteId: Map<string, string>;
   noteCountsByDate: Map<string, number>;
   notesByDate: Map<string, NoteSummary[]>;
+  tasksByDate?: Map<string, NoteSummary[]>;
 };
 
 const MARKERS_BY_MONTH_MAX = 36;
 const markersByMonth = new Map<string, MonthNoteMarkers>();
+const reservedTaskTitlesByDate = new Map<string, Set<string>>();
 const processingTaskCompletionNoteIds = new Set<string>();
 
 export function clearCalendarNoteCaches(): void {
@@ -103,10 +105,12 @@ export function clearCalendarNoteCaches(): void {
   templateSourceCache.clear();
   taskMetadataCache.clear();
   markersByMonth.clear();
+  reservedTaskTitlesByDate.clear();
 }
 
 export function clearCalendarMonthMarkers(): void {
   markersByMonth.clear();
+  reservedTaskTitlesByDate.clear();
 }
 
 export function hasCachedMonthMarkers(): boolean {
@@ -125,8 +129,9 @@ export function invalidateCalendarMonthMarkers(year: number, month: number): voi
 
 export function invalidateCalendarMonthMarkersForNote(noteId: string): void {
   for (const [key, markers] of markersByMonth) {
-    if (markers.datesByNoteId.has(noteId)) {
+    if (markers.datesByNoteId.has(noteId) || hasNoteInMarkers(markers.tasksByDate, noteId)) {
       markersByMonth.delete(key);
+      reservedTaskTitlesByDate.delete(key);
     }
   }
 }
@@ -935,6 +940,7 @@ export async function getExistingCalendarNoteMarkers(
 
       if (dateId) {
         datesByNoteId.set(note.id, dateId);
+        monthNotes.datesByNoteId.set(note.id, dateId);
         appendItemForDate(tasksByDate, dateId, note);
         tasksWithMetadata.add(note);
       }
@@ -951,6 +957,8 @@ export async function getExistingCalendarNoteMarkers(
   for (const tasks of tasksByDate.values()) {
     tasks.sort(sortTasks);
   }
+
+  monthNotes.tasksByDate = tasksByDate;
 
   overdueTasks.sort((first, second) => {
     const dateComparison = first.dateId.localeCompare(second.dateId);
@@ -986,30 +994,111 @@ function setsIntersect(
   return false;
 }
 
-function getCachedDayNoteTitles(
+function hasNoteInMarkers(
+  notesByDate: Map<string, NoteSummary[]> | undefined,
+  noteId: string,
+): boolean {
+  if (!notesByDate) {
+    return false;
+  }
+
+  for (const notes of notesByDate.values()) {
+    if (notes.some((note) => note.id === noteId)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getCachedDayTitles(
   baseTitle: string,
   dateId: string,
   settings: CalendarSettings,
-): ReadonlySet<string> | null {
+  notesByDate: Map<string, NoteSummary[]> | undefined,
+): Set<string> | null {
   const date = parseDateId(dateId);
 
   if (resolveCalendarNoteDateId(baseTitle, date.year, date.month, settings) !== dateId) {
     return null;
   }
 
-  const cached = markersByMonth.get(buildMonthMarkersKey(date.year, date.month, settings));
-
-  if (!cached) {
+  if (!notesByDate) {
     return null;
   }
 
-  const titles = new Set<string>();
+  return new Set((notesByDate.get(dateId) ?? []).map((note) => note.title));
+}
 
-  for (const note of cached.notesByDate.get(dateId) ?? []) {
-    titles.add(note.title);
+function getCachedDayNoteTitles(
+  baseTitle: string,
+  dateId: string,
+  settings: CalendarSettings,
+): Set<string> | null {
+  const date = parseDateId(dateId);
+  const cached = markersByMonth.get(buildMonthMarkersKey(date.year, date.month, settings));
+
+  return getCachedDayTitles(baseTitle, dateId, settings, cached?.notesByDate);
+}
+
+function getCachedDayTaskTitles(
+  baseTitle: string,
+  dateId: string,
+  settings: CalendarSettings,
+): Set<string> | null {
+  const date = parseDateId(dateId);
+  const key = buildMonthMarkersKey(date.year, date.month, settings);
+  const cached = markersByMonth.get(key);
+  const titles = getCachedDayTitles(baseTitle, dateId, settings, cached?.tasksByDate);
+
+  if (!titles) {
+    return null;
+  }
+
+  const reservedTitles = reservedTaskTitlesByDate.get(`${key}\u0000${dateId}`);
+
+  for (const title of reservedTitles ?? []) {
+    titles.add(title);
   }
 
   return titles;
+}
+
+function reserveTaskTitle(dateId: string, settings: CalendarSettings, title: string): () => void {
+  const date = parseDateId(dateId);
+  const key = `${buildMonthMarkersKey(date.year, date.month, settings)}\u0000${dateId}`;
+  let titles = reservedTaskTitlesByDate.get(key);
+
+  if (!titles) {
+    titles = new Set<string>();
+    reservedTaskTitlesByDate.set(key, titles);
+  }
+
+  titles.add(title);
+
+  return () => {
+    titles.delete(title);
+
+    if (titles.size === 0) {
+      reservedTaskTitlesByDate.delete(key);
+    }
+  };
+}
+
+function appendCreatedTaskToMonthMarkers(
+  dateId: string,
+  settings: CalendarSettings,
+  task: NoteSummary,
+): void {
+  const date = parseDateId(dateId);
+  const cached = markersByMonth.get(buildMonthMarkersKey(date.year, date.month, settings));
+
+  if (!cached?.tasksByDate) {
+    return;
+  }
+
+  cached.datesByNoteId.set(task.id, dateId);
+  appendItemForDate(cached.tasksByDate, dateId, task);
 }
 
 function makeUniqueTitleFromKnownTitles(
@@ -1070,7 +1159,6 @@ async function createCalendarNote(
     dateId,
     settings.notebookNotesPathPattern,
   );
-
   if (!parentId) {
     await joplin.views.dialogs.showMessageBox(
       strings.createCalendarNoteNoNotebookError,
@@ -1102,7 +1190,6 @@ async function createCalendarNote(
     user_updated_time: dayStart,
     source_application: PLUGIN_ID,
   }) as NoteSummary;
-
   await copyNoteTags(templateSource.noteId, created.id);
   return created;
 }
@@ -1148,7 +1235,6 @@ async function createCalendarTask(
     user_updated_time: dayStart,
     source_application: PLUGIN_ID,
   }) as NoteSummary;
-
   await copyNoteTags(templateSource.noteId, created.id);
   return created;
 }
@@ -1185,8 +1271,24 @@ export async function createCalendarTaskForDate(
   const dayIdentifier = buildDayIdentifier(dateId, effectiveSettings);
   const taskFolderIds = await getTasksTreeIds(effectiveSettings);
   const baseTitle = `${dayIdentifier} - ${strings.newTaskDefaultTitle}`;
-  const title = await makeUniqueNoteTitle(baseTitle, taskFolderIds);
-  const created = await createCalendarTask(dateId, title, effectiveSettings);
+  const knownTitles = getCachedDayTaskTitles(baseTitle, dateId, effectiveSettings);
+  const title = knownTitles
+    ? makeUniqueTitleFromKnownTitles(baseTitle, knownTitles)
+    : await makeUniqueNoteTitle(baseTitle, taskFolderIds);
+  const releaseReservedTitle = knownTitles
+    ? reserveTaskTitle(dateId, effectiveSettings, title)
+    : null;
+  let created: NoteSummary | null = null;
+
+  try {
+    created = await createCalendarTask(dateId, title, effectiveSettings);
+  } finally {
+    releaseReservedTitle?.();
+  }
+
+  if (created) {
+    appendCreatedTaskToMonthMarkers(dateId, effectiveSettings, created);
+  }
 
   if (created && openAfterCreate) {
     await joplin.commands.execute("openNote", created.id);

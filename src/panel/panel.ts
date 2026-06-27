@@ -1340,7 +1340,10 @@ export async function shouldRefreshCalendarForNoteChange(
     return false;
   }
 
-  if (visibleCalendarNoteDatesById.has(noteId) || isVisibleTaggedTask(noteId)) {
+  if (visibleCalendarNoteDatesById.has(noteId)
+    || isVisibleOverdueTask(noteId)
+    || isVisibleTaggedTask(noteId)
+  ) {
     return true;
   }
 
@@ -1422,6 +1425,22 @@ export async function addCreatedCalendarTask(
   }
 
   addVisibleCalendarItem(dateId, task, visibleTasksByDate, sortTasks);
+
+  if (dateId < getTodayDateId() && (task.todo_completed ?? 0) === 0) {
+    visibleOverdueTasks = [
+      ...visibleOverdueTasks.filter((item) => item.task.id !== task.id),
+      { task, dateId },
+    ].sort((first, second) => {
+      const dateComparison = first.dateId.localeCompare(second.dateId);
+
+      if (dateComparison !== 0) {
+        return dateComparison;
+      }
+
+      return first.task.title.localeCompare(second.task.title);
+    });
+  }
+
   return renderVisiblePanel();
 }
 

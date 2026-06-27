@@ -337,8 +337,8 @@ function applyPanelResponse(response, force = false) {
   }
 
   queuedPanelHtml = null;
-  applyPanelHtml(response.html);
-}
+    applyPanelHtml(response.html);
+  }
 
 function applyQueuedPanelHtml() {
   if (pendingCreateCount === 0 && queuedPanelHtml !== null) {
