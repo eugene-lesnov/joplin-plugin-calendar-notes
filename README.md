@@ -9,9 +9,9 @@
 - Click a day to select it; sections below the calendar list that day's tasks and notes.
 - Create Joplin todo tasks for a selected day, complete them from the calendar panel, configure simple recurring tasks, see task reminders, and keep overdue tasks visible in one place.
 - Show undated todo tasks with configured tags in a separate collapsible section.
-- Date format follows Joplin's global date format (Tools → Options → General → Date format), with simple presets for new note titles.
+- Date and time formats follow Joplin's global settings (Tools → Options → General → Date format / Time format), with simple presets for new note titles.
 - Separate notebooks and nested structures for calendar notes and tasks.
-- Optional note and task templates with placeholders (`{{title}}`, `{{date}}` in Joplin's date format, `{{time}}`, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
+- Optional note and task templates with placeholders (`{{title}}`, `{{date}}` in Joplin's date format, `{{time}}` in Joplin's time format, `{{YYYY}}`, `{{MM}}`, `{{dd}}`, `{{date:dd.MM.YYYY}}`, …).
 - Week starts on Monday or Sunday.
 - English and Russian UI.
 
@@ -27,7 +27,7 @@ Joplin **3.5** or newer.
 
 ## Settings
 
-The date used in calendar note titles follows Joplin's global **Date format** (Tools → Options → General → Date format); there is no separate plugin setting for it.
+Date and time values used by the plugin follow Joplin's global **Date format** and **Time format** (Tools → Options → General); there are no separate plugin settings for them.
 
 | Setting | Purpose |
 | --- | --- |
