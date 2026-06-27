@@ -1134,15 +1134,40 @@ async function canPatchVisibleNote(previous: NoteSummary, next: NoteSummary, dat
   return true;
 }
 
-function updateVisibleNoteCache(note: NoteSummary, dateId: string): void {
+export function updateVisibleCalendarNoteCache(note: NoteSummary): boolean {
+  const dateId = visibleCalendarNoteDatesById.get(note.id);
   const updateItems = (items: NoteSummary[]) =>
     items.map((item) => item.id === note.id ? { ...item, ...note } : item);
 
-  visibleNotesByDate.set(dateId, updateItems(visibleNotesByDate.get(dateId) ?? []));
-  visibleTasksByDate.set(dateId, updateItems(visibleTasksByDate.get(dateId) ?? []));
-  visibleOverdueTasks = visibleOverdueTasks.map((item) =>
-    item.task.id === note.id ? { ...item, task: { ...item.task, ...note } } : item,
-  );
+  let updated = false;
+
+  if (dateId) {
+    visibleNotesByDate.set(dateId, updateItems(visibleNotesByDate.get(dateId) ?? []));
+    visibleTasksByDate.set(dateId, updateItems(visibleTasksByDate.get(dateId) ?? []));
+    updated = true;
+  }
+
+  let completedOverdue = false;
+
+  visibleOverdueTasks = visibleOverdueTasks.map((item) => {
+    if (item.task.id !== note.id) {
+      return item;
+    }
+
+    updated = true;
+    completedOverdue = (note.todo_completed ?? 0) > 0;
+    return { ...item, task: { ...item.task, ...note } };
+  });
+
+  return updated && !completedOverdue;
+}
+
+function updateVisibleNoteCache(note: NoteSummary, dateId: string): void {
+  if (!visibleCalendarNoteDatesById.has(note.id)) {
+    visibleCalendarNoteDatesById.set(note.id, dateId);
+  }
+
+  updateVisibleCalendarNoteCache(note);
 }
 
 function makePatchVisibleNoteMessage(

@@ -15,6 +15,7 @@ export type TaskMetadata = {
 export type TaskCompletionResult = {
   applied: boolean;
   createdRepeatedTask: boolean;
+  shouldRender: boolean;
 };
 
 export type CalendarMessage =

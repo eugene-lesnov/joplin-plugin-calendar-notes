@@ -46,6 +46,7 @@ import {
   selectCalendarDate,
   shouldRefreshCalendarForNoteChange,
   showCalendarPanel,
+  updateVisibleCalendarNoteCache,
   toggleOverdueTasks,
   setupPanel,
   toggleCalendarPanel,
@@ -173,13 +174,27 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
   }
 
   if (message.name === "toggleTask") {
-    let result = { applied: false, createdRepeatedTask: false };
+    let result = { applied: false, createdRepeatedTask: false, shouldRender: true };
 
     await enqueueTaskCompletion(async () => {
       result = await setCalendarTaskCompleted(message.id, !message.completed);
     });
 
-    if (!result.applied || result.createdRepeatedTask) {
+    if (!result.applied || result.shouldRender) {
+      return renderCalendar();
+    }
+
+    const completed = !message.completed;
+
+    const cacheUpdated = updateVisibleCalendarNoteCache({
+      id: message.id,
+      title: message.title,
+      is_todo: 1,
+      todo_completed: completed ? Date.now() : 0,
+      todo_due: message.alarmTime,
+    });
+
+    if (!cacheUpdated) {
       return renderCalendar();
     }
 
@@ -188,7 +203,7 @@ async function handlePanelMessage(message: CalendarMessage): Promise<PanelMessag
       id: message.id,
       title: message.title,
       isTodo: true,
-      completed: !message.completed,
+      completed,
       alarmTime: message.alarmTime,
     };
   }
